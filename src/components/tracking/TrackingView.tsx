@@ -17,6 +17,7 @@ import type { Order, OrderStatus, Settings } from "@/lib/types";
 import { ORDER_STATUS_LABEL, PAYMENT_LABEL } from "@/lib/types";
 import { brl, formatDate, onlyDigits } from "@/lib/format";
 import { mapsSearchUrl } from "@/lib/orders";
+import LiveDeliveryTracker from "./LiveDeliveryTracker";
 import OrderChat from "@/components/chat/OrderChat";
 
 const STEPS: { status: OrderStatus; label: string; desc: string }[] = [
@@ -145,6 +146,14 @@ export default function TrackingView({
               {ORDER_STATUS_LABEL[order.status]}
             </span>
           </div>
+
+          {isDelivery && order.status === "saiu" && (
+            <LiveDeliveryTracker
+              orderCode={order.code}
+              trackingToken={undefined}
+              orderStatus={order.status}
+            />
+          )}
 
           {/* PROGRESSO */}
           {!isCanceled && (
