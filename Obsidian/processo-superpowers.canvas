@@ -1,0 +1,105 @@
+{
+  "nodes": [
+    {
+      "id": "brainstorming",
+      "type": "text",
+      "text": "# 🧠 Brainstorming\nInvocar skill `brainstorming`\n- Entender o que o parceiro quer\n- Perguntar o porquê\n- Mostrar, não contar (mockups)",
+      "x": -600,
+      "y": 0,
+      "width": 220,
+      "height": 160,
+      "color": "#e8a317"
+    },
+    {
+      "id": "gate-1",
+      "type": "text",
+      "text": "## ⏹ Gate\nAprovação do parceiro?\nSe sim → Design Doc\nSe não → Ajustar",
+      "x": -200,
+      "y": 160,
+      "width": 160,
+      "height": 100,
+      "color": "#d9534f"
+    },
+    {
+      "id": "design-doc",
+      "type": "text",
+      "text": "# 📝 Design Doc\nEscrever `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`\n- Intent, goals, non-goals\n- Abordagens (2-3 alternativas)\n- O parceiro escolhe uma",
+      "x": 200,
+      "y": 0,
+      "width": 240,
+      "height": 160,
+      "color": "#5bc0de"
+    },
+    {
+      "id": "builder-check",
+      "type": "text",
+      "text": "## 🔍 Builder Check\nSubagent lê o doc\n- Respondido já\n- Chamada minha (decido)\n- Dele (perguntar parceiro)",
+      "x": 500,
+      "y": -100,
+      "width": 200,
+      "height": 140,
+      "color": "#f0ad4e"
+    },
+    {
+      "id": "plano",
+      "type": "text",
+      "text": "# 📋 Plano\nInvocar `writing-plans`\n- Quebrar em tarefas\n- Estimar esforço\n- Definir ordem de execução",
+      "x": 500,
+      "y": 80,
+      "width": 200,
+      "height": 140,
+      "color": "#5cb85c"
+    },
+    {
+      "id": "implementacao",
+      "type": "text",
+      "text": "# 💻 Implementação\nEscrever código\n- Seguir o design doc\n- Manter comentários\n- Não pular verificação",
+      "x": 900,
+      "y": 80,
+      "width": 220,
+      "height": 140,
+      "color": "#0275d8"
+    },
+    {
+      "id": "verificacao",
+      "type": "text",
+      "text": "# ✅ Verificação\n- Rodar testes\n- Confirmar saída\n- Evidência > afirmação",
+      "x": 1350,
+      "y": 80,
+      "width": 200,
+      "height": 120,
+      "color": "#5cb85c"
+    },
+    {
+      "id": "revisao",
+      "type": "text",
+      "text": "# 🔄 Revisão\n`cavecrew-reviewer` / subagent\n- Um achado por linha\n- Sem elogios, sem expansão de escopo",
+      "x": 1600,
+      "y": -20,
+      "width": 200,
+      "height": 120,
+      "color": "#f7ca18"
+    },
+    {
+      "id": "gate-final",
+      "type": "text",
+      "text": "## ⏹ Gate Final\nTudo passa?\nSe sim → Merge / Deploy\nSe não → Corrigir e voltar",
+      "x": 1600,
+      "y": 160,
+      "width": 180,
+      "height": 100,
+      "color": "#d9534f"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "fromNode": "brainstorming", "fromSide": "right", "toNode": "gate-1", "toSide": "left", "label": "Entendido?" },
+    { "id": "e2", "fromNode": "gate-1", "fromSide": "right", "toNode": "design-doc", "toSide": "left", "label": "Sim" },
+    { "id": "e3", "fromNode": "design-doc", "fromSide": "right", "toNode": "builder-check", "toSide": "left", "label": "Doc pronto" },
+    { "id": "e4", "fromNode": "builder-check", "fromSide": "bottom", "toNode": "plano", "toSide": "left", "label": "Aprovado" },
+    { "id": "e5", "fromNode": "plano", "fromSide": "right", "toNode": "implementacao", "toSide": "left", "label": "Começar" },
+    { "id": "e6", "fromNode": "implementacao", "fromSide": "right", "toNode": "verificacao", "toSide": "left", "label": "Pronto" },
+    { "id": "e7", "fromNode": "verificacao", "fromSide": "right", "toNode": "revisao", "toSide": "left", "label": "Passou?" },
+    { "id": "e8", "fromNode": "revisao", "fromSide": "bottom", "toNode": "gate-final", "toSide": "top", "label": "Revisão OK" },
+    { "id": "e9", "fromNode": "gate-final", "fromSide": "left", "toNode": "implementacao", "toSide": "bottom", "label": "Não → Corrigir", "labelBackground": "#d9534f" }
+  ]
+}
