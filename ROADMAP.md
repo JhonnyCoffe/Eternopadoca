@@ -19,6 +19,8 @@
 
 ## Fase 1 — Base operacional sólida (1–2 semanas)
 
+> **Lembrete:** ao iniciar esta fase, usar Superpowers para brainstorming, plano, implementação, revisão e verificação. Não usar para ajustes visuais pequenos.
+
 | Item | Complexidade | Esforço |
 |---|---|---|
 | Login com usuários e permissões (dono, atendente, cozinha) | Média | 2–3 dias |

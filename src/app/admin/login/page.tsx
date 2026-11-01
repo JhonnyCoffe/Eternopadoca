@@ -92,7 +92,7 @@ export default async function LoginPage({
 
           <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3 text-center text-[11px] leading-relaxed text-zinc-400">
             Acesso principal: <strong className="text-zinc-200">admin</strong> /{" "}
-            <code className="text-rose-300">admin123</code>
+            <span className="text-rose-300">senha configurada no ambiente</span>
           </div>
         </form>
 

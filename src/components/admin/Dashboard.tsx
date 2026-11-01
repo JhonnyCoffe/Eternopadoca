@@ -23,6 +23,7 @@ const STATUS_COLORS: Record<string, string> = {
   preparando: "#f59e0b",
   pronto: "#a78bfa",
   saiu: "#38bdf8",
+  chegou: "#facc15",
   concluido: "#34d399",
   cancelado: "#52525b",
 };
@@ -110,7 +111,7 @@ export default function Dashboard({
   const maxQty = Math.max(...topProducts.map((p) => p.qty), 1);
 
   const statusCounts = (
-    ["novo", "preparando", "pronto", "saiu", "concluido", "cancelado"] as const
+    ["novo", "preparando", "pronto", "saiu", "chegou", "concluido", "cancelado"] as const
   ).map((status) => ({
     status,
     label: ORDER_STATUS_LABEL[status],

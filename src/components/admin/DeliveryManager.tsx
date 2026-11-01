@@ -35,7 +35,7 @@ export default function DeliveryManager({
   const [zoneError, setZoneError] = useState("");
 
   const pendingDeliveries = orders.filter(
-    (o) => o.status === "preparando" || o.status === "pronto" || o.status === "saiu",
+    (o) => o.status === "preparando" || o.status === "pronto" || o.status === "saiu" || o.status === "chegou",
   );
 
   function assign(orderId: string, driverId: string) {
@@ -53,6 +53,8 @@ export default function DeliveryManager({
       order.status === "pronto"
         ? "saiu"
         : order.status === "saiu"
+        ? "chegou"
+        : order.status === "chegou"
         ? "concluido"
         : null;
     if (!next) return;
@@ -142,14 +144,18 @@ export default function DeliveryManager({
                     </div>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${
-                        order.status === "saiu"
+                        order.status === "chegou"
+                          ? "bg-emerald-500/20 text-emerald-300"
+                          : order.status === "saiu"
                           ? "bg-sky-500/20 text-sky-300"
                           : order.status === "pronto"
                           ? "bg-violet-500/20 text-violet-300"
                           : "bg-amber-500/20 text-amber-300"
                       }`}
                     >
-                      {order.status === "saiu"
+                      {order.status === "chegou"
+                        ? "Chegou"
+                        : order.status === "saiu"
                         ? "Na rua"
                         : order.status === "pronto"
                         ? "Pronto"
@@ -216,7 +222,7 @@ export default function DeliveryManager({
                         Despachar
                       </button>
                     )}
-                    {order.status === "saiu" && (
+                    {(order.status === "saiu" || order.status === "chegou") && (
                       <button
                         onClick={() => advance(order)}
                         disabled={busy}

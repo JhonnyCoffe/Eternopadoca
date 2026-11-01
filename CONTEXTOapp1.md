@@ -205,4 +205,10 @@ Mensagem do cliente E2E
 
 6. Cancelar ou excluir o pedido e mensagens de teste.
 
-7. Depois disso, iniciar próxima fase: migrar JSON para SQLite.
+7. Migração incremental para SQLite foi implementada:
+   - `src/lib/sqlite.ts` contém schema, importação e round-trip.
+   - `src/lib/db.ts` preserva `getDb`, `saveDb` e `mutateDb`.
+   - `DB_DRIVER=json` mantém fallback padrão.
+   - `DB_DRIVER=sqlite` ativa `data/app.sqlite`.
+   - `node scripts/migrate-json-to-sqlite.mjs` cria backup e importa JSON.
+   - Validar manualmente rotas públicas, painel, cozinha, entregas, rastreamento e chat antes de trocar `.env.local` para SQLite.

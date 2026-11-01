@@ -36,10 +36,11 @@ const FILTERS: { id: string; label: string; match: (o: Order) => boolean }[] = [
     id: "andamento",
     label: "Em andamento",
     match: (o) =>
-      o.status === "preparando" || o.status === "pronto" || o.status === "saiu",
+      o.status === "preparando" || o.status === "pronto" || o.status === "saiu" || o.status === "chegou",
   },
   { id: "pronto", label: "Prontos", match: (o) => o.status === "pronto" },
   { id: "saiu", label: "Na rua", match: (o) => o.status === "saiu" },
+  { id: "chegou", label: "Chegou", match: (o) => o.status === "chegou" },
   { id: "concluido", label: "Concluídos", match: (o) => o.status === "concluido" },
   { id: "cancelado", label: "Cancelados", match: (o) => o.status === "cancelado" },
 ];
@@ -48,7 +49,8 @@ const NEXT: Record<string, { label: string; status: OrderStatus }> = {
   novo: { label: "Iniciar preparo", status: "preparando" },
   preparando: { label: "Pronto p/ entrega/retirada", status: "pronto" },
   pronto: { label: "Despachar pedido", status: "saiu" },
-  saiu: { label: "Concluir pedido", status: "concluido" },
+  saiu: { label: "Marcar chegada", status: "chegou" },
+  chegou: { label: "Concluir pedido", status: "concluido" },
 };
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
@@ -56,6 +58,7 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
   preparando: "border-amber-500/30 bg-amber-500/10 text-amber-300",
   pronto: "border-violet-500/30 bg-violet-500/10 text-violet-300",
   saiu: "border-sky-500/30 bg-sky-500/10 text-sky-300",
+  chegou: "border-amber-500/30 bg-amber-500/10 text-amber-300",
   concluido: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
   cancelado: "border-white/10 bg-white/[0.05] text-zinc-400",
 };

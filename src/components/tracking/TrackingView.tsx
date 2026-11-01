@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
   Bike,
+  Star,
   CheckCircle2,
   ExternalLink,
   MapPin,
@@ -20,10 +20,11 @@ import { mapsSearchUrl } from "@/lib/orders";
 import OrderChat from "@/components/chat/OrderChat";
 
 const STEPS: { status: OrderStatus; label: string; desc: string }[] = [
-  { status: "novo", label: "Recebido", desc: "Aguardando confirmação da loja" },
-  { status: "preparando", label: "Na chapa", desc: "Seus itens estão sendo preparados" },
+  { status: "novo", label: "Pedido confirmado!", desc: "Aguardando confirmação da loja" },
+  { status: "preparando", label: "Em preparo", desc: "Seu pedido está sendo preparado." },
   { status: "pronto", label: "Pronto", desc: "Aguardando retirada ou entregador" },
   { status: "saiu", label: "A caminho", desc: "Entregador saiu com seu pedido" },
+  { status: "chegou", label: "Seu pedido chegou!", desc: "Código de entrega" },
   { status: "concluido", label: "Entregue", desc: "Bom apetite!" },
 ];
 
@@ -39,19 +40,59 @@ export default function TrackingView({
   order: Order;
   settings: Settings;
 }) {
-  const router = useRouter();
-  const [order] = useState<Order>(initialOrder);
   const [chatOpen, setChatOpen] = useState(false);
+  const [order, setOrder] = useState<Order>(initialOrder);
+  const [rating, setRating] = useState(initialOrder.rating ?? 0);
+  const [ratingBusy, setRatingBusy] = useState(false);
+  const [ratingError, setRatingError] = useState("");
+
+  const refreshOrder = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/pedido/${initialOrder.code}`, { cache: "no-store" });
+      if (!response.ok) return;
+      const data = (await response.json()) as { ok: boolean; order?: Order };
+      if (data.ok && data.order) {
+        setOrder(data.order);
+        setRating(data.order.rating ?? 0);
+      }
+    } catch {
+      // Mantém último estado quando cliente está sem conexão.
+    }
+  }, [initialOrder.code]);
 
   useEffect(() => {
-    const id = setInterval(() => router.refresh(), 8000);
+    const id = setInterval(() => void refreshOrder(), 30_000);
     return () => clearInterval(id);
-  }, [router]);
+  }, [refreshOrder]);
+
+  async function submitRating() {
+    if (!rating || ratingBusy) return;
+    setRatingBusy(true);
+    setRatingError("");
+    try {
+      const response = await fetch(`/api/pedido/${order.code}/avaliacao`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating }),
+      });
+      const data = (await response.json()) as { ok: boolean; order?: Order; error?: string };
+      if (!response.ok || !data.ok || !data.order) {
+        setRatingError(data.error ?? "Não foi possível salvar sua avaliação.");
+        return;
+      }
+      setOrder(data.order);
+    } catch {
+      setRatingError("Falha de conexão. Tente novamente.");
+    } finally {
+      setRatingBusy(false);
+    }
+  }
 
   const currentStep = stepIndex(order.status);
   const isCanceled = order.status === "cancelado";
   const isDelivery = order.type === "delivery";
   const wa = onlyDigits(settings.whatsapp);
+  const deliveryCode = order.code;
 
   return (
     <div className="min-h-screen bg-[#08080a] text-zinc-100">
@@ -68,7 +109,7 @@ export default function TrackingView({
             {settings.storeName}
           </span>
           <button
-            onClick={() => router.refresh()}
+            onClick={() => void refreshOrder()}
             className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:text-white"
             aria-label="Atualizar status"
           >
@@ -110,8 +151,8 @@ export default function TrackingView({
             <div className="pt-2">
               <div className="space-y-4">
                 {STEPS.map((s, idx) => {
-                  const done = idx < currentStep;
-                  const current = idx === currentStep;
+                  const done = idx < currentStep || (order.status === "concluido" && idx === currentStep);
+                  const current = idx === currentStep && order.status !== "concluido";
                   return (
                     <div key={s.status} className="flex items-start gap-3">
                       <div className="relative flex flex-col items-center">
@@ -120,7 +161,7 @@ export default function TrackingView({
                             done
                               ? "bg-emerald-500 text-white"
                               : current
-                              ? "bg-[var(--brand)] text-white shadow-lg shadow-[#e11d48]/40 ring-4 ring-rose-500/20"
+                              ? "bg-amber-400 text-zinc-950 shadow-lg shadow-amber-500/40 ring-4 ring-amber-300/25 animate-pulse"
                               : "border border-white/10 bg-white/[0.04] text-zinc-500"
                           }`}
                         >
@@ -146,7 +187,11 @@ export default function TrackingView({
                         >
                           {s.label}
                         </p>
-                        <p className="text-xs text-zinc-500">{s.desc}</p>
+                        <p className="text-xs text-zinc-500">
+                          {s.status === "chegou"
+                            ? `Código de entrega: ${deliveryCode}`
+                            : s.desc}
+                        </p>
                       </div>
                     </div>
                   );
@@ -163,7 +208,7 @@ export default function TrackingView({
           )}
 
           {/* MOTORISTA */}
-          {order.driverName && order.status === "saiu" && (
+          {order.driverName && (order.status === "saiu" || order.status === "chegou") && (
             <div className="flex items-center gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-3.5 text-xs text-sky-200">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-500 text-white">
                 <Bike size={18} />
@@ -204,6 +249,37 @@ export default function TrackingView({
             </div>
           )}
         </div>
+
+        {order.status === "concluido" && (
+          <div className="card p-5 text-center">
+            {order.rating ? (
+              <>
+                <h2 className="text-base font-extrabold text-white">Obrigado pela avaliação!</h2>
+                <div className="mt-3 flex justify-center gap-1" aria-label={`Nota: ${order.rating} de 5`}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} size={24} className={star <= order.rating! ? "fill-amber-400 text-amber-400" : "text-zinc-600"} />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-base font-extrabold text-white">Como foi seu pedido?</h2>
+                <p className="mt-1 text-xs text-zinc-400">Avalie sua experiência de 1 a 5 estrelas.</p>
+                <div className="mt-4 flex justify-center gap-2" role="radiogroup" aria-label="Avaliação do pedido">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button key={star} type="button" onClick={() => setRating(star)} aria-label={`${star} estrela${star > 1 ? "s" : ""}`} aria-pressed={rating === star}>
+                      <Star size={30} className={star <= rating ? "fill-amber-400 text-amber-400" : "text-zinc-600 hover:text-amber-300"} />
+                    </button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => void submitRating()} disabled={!rating || ratingBusy} className="btn btn-primary mt-4 w-full disabled:opacity-50">
+                  {ratingBusy ? "Salvando..." : "Enviar avaliação"}
+                </button>
+                {ratingError && <p className="mt-2 text-xs text-red-300">{ratingError}</p>}
+              </>
+            )}
+          </div>
+        )}
 
         {/* DETALHES DO PEDIDO */}
         <div className="card p-5 space-y-3">

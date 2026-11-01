@@ -5,6 +5,7 @@ export type OrderStatus =
   | "preparando"
   | "pronto"
   | "saiu"
+  | "chegou"
   | "concluido"
   | "cancelado";
 
@@ -84,6 +85,8 @@ export interface Order {
   dispatchedAt?: string;
   deliveredAt?: string;
   paidAt?: string;
+  rating?: number;
+  ratedAt?: string;
 }
 
 export interface ChatMessage {
@@ -132,6 +135,16 @@ export interface Settings {
   deliveryZones: DeliveryZone[];
 }
 
+export interface DeliveryLocation {
+  orderId: string;
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  heading?: number;
+  speed?: number;
+  updatedAt: string;
+}
+
 export interface Db {
   settings: Settings;
   categories: Category[];
@@ -160,6 +173,7 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   preparando: "Preparando",
   pronto: "Pronto",
   saiu: "Saiu para entrega",
+  chegou: "Chegou ao endereço",
   concluido: "Concluído",
   cancelado: "Cancelado",
 };

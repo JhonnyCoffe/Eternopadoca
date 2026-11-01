@@ -1,15 +1,9 @@
 import type { Order, PaymentMethod, Settings } from "./types";
 import { PAYMENT_LABEL } from "./types";
 import { brl, onlyDigits } from "./format";
+import { makeOrderCode } from "./order-code";
 
-export function makeOrderCode(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 4; i++) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return code;
-}
+export { makeOrderCode };
 
 function paymentNote(payment: PaymentMethod, settings: Settings) {
   if (payment === "pix") {

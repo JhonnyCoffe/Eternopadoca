@@ -121,6 +121,7 @@ export const STATUS_FLOW: OrderStatus[] = [
   "preparando",
   "pronto",
   "saiu",
+  "chegou",
   "concluido",
 ];
 

@@ -58,10 +58,20 @@ Depois abra: http://localhost:3000
 
 ## 💾 Onde ficam os dados
 
-Tudo é salvo em `data/db.json` (criado automaticamente na primeira execução com um cardápio de exemplo).
+Por padrão, tudo é salvo em `data/db.json` (criado automaticamente na primeira execução com um cardápio de exemplo).
 
-- Para **zerar** tudo: apague o arquivo `data/db.json` e reinicie o servidor.
-- Para **fazer backup**: copie esse arquivo.
+Para ativar SQLite local:
+
+```env
+DB_DRIVER=sqlite
+```
+
+Depois execute `node scripts/migrate-json-to-sqlite.mjs` antes de iniciar o app. O banco fica em `data/app.sqlite`.
+
+- Para voltar ao JSON: use `DB_DRIVER=json` e reinicie o servidor.
+- Para **zerar** dados JSON: apague `data/db.json` e reinicie o servidor.
+- Para **fazer backup**: copie `data/db.json` ou o arquivo `data/app.sqlite`.
+- A migração cria backup timestampado do JSON antes de importar.
 - Fotos enviadas pelo painel ficam em `public/uploads` (linkadas automaticamente ao produto).
 - Também é possível usar links externos (ex: Unsplash) colando a URL.
 
@@ -71,6 +81,7 @@ Tudo é salvo em `data/db.json` (criado automaticamente na primeira execução c
 
 | Camada | Tecnologia |
 |---|---|
+| Runtime | Node.js 22.5+ (`node:sqlite`) |
 | Framework | Next.js 16 (App Router) |
 | Interface | React 19 + Tailwind CSS 4 (tema escuro) |
 | Ícones | lucide-react |

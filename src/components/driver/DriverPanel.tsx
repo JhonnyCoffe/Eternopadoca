@@ -32,6 +32,7 @@ export default function DriverPanel({
   const router = useRouter();
   const [tab, setTab] = useState<"minhas" | "disponiveis" | "historico">("minhas");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function DriverPanel({
   }, [router]);
 
   const myOrders = orders.filter(
-    (o) => o.driverId === user.userId && o.status === "saiu",
+    (o) => o.driverId === user.userId && (o.status === "saiu" || o.status === "chegou"),
   );
   const available = orders.filter(
     (o) => o.status === "pronto" && !o.driverId,
@@ -53,6 +54,16 @@ export default function DriverPanel({
     setBusyId(order.id);
     startTransition(async () => {
       const res = await assignDriver(order.id, user.userId);
+      setBusyId(null);
+      if (!res.ok) alert(res.error);
+      router.refresh();
+    });
+  }
+
+  function markArrived(order: Order) {
+    setBusyId(order.id);
+    startTransition(async () => {
+      const res = await updateOrderStatus(order.id, "chegou");
       setBusyId(null);
       if (!res.ok) alert(res.error);
       router.refresh();
@@ -188,23 +199,48 @@ export default function DriverPanel({
                       </a>
                     </div>
 
-                    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-xs space-y-1">
+                    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-xs space-y-2">
                       <div className="flex justify-between text-zinc-400">
-                        <span>Receber do cliente:</span>
-                        <span className="font-bold text-white num">
-                          {order.paymentStatus === "pago"
-                            ? "JÁ PAGO (não cobrar)"
-                            : brl(order.total)}
-                        </span>
+                        <span>Frete da entrega:</span>
+                        <span className="font-bold text-emerald-300 num">{brl(order.deliveryFee)}</span>
                       </div>
-                      <div className="flex justify-between text-zinc-500 text-[11px]">
-                        <span>Forma:</span>
-                        <span>{PAYMENT_LABEL[order.payment]}</span>
+                      <div className={`flex justify-between rounded-lg px-2 py-1 ${order.paymentStatus === "pendente" ? "bg-amber-400/10 text-amber-200" : "text-zinc-500"}`}>
+                        <span>Pagamento:</span>
+                        <span className="font-semibold">{PAYMENT_LABEL[order.payment]}{order.paymentStatus === "pago" ? " · Pago" : " · Pendente"}</span>
                       </div>
+                      {order.payment === "dinheiro" && order.paymentStatus !== "pago" && (
+                        <p className="text-[11px] text-amber-200">Confirme o troco antes de sair.</p>
+                      )}
                     </div>
 
                     <button
-                      onClick={() => markDelivered(order)}
+                      type="button"
+                      onClick={() => setExpandedOrderId((current) => current === order.id ? null : order.id)}
+                      className="w-full rounded-xl border border-white/10 px-3 py-2 text-left text-xs font-bold text-zinc-300 hover:border-white/20 hover:text-white"
+                      aria-expanded={expandedOrderId === order.id}
+                    >
+                      {expandedOrderId === order.id ? "Ocultar detalhes" : "Ver detalhes do pedido"}
+                    </button>
+
+                    {expandedOrderId === order.id && (
+                      <div className="rounded-xl border border-white/[0.08] bg-black/20 p-3 text-xs space-y-2">
+                        <p className="font-bold uppercase tracking-wider text-zinc-500">Itens do pedido</p>
+                        {order.items.map((item) => (
+                          <div key={item.productId} className="flex justify-between text-zinc-300">
+                            <span>{item.qty}x {item.name}</span>
+                            <span className="num">{brl(item.price * item.qty)}</span>
+                          </div>
+                        ))}
+                        {order.notes && <p className="rounded-lg bg-amber-400/10 p-2 text-amber-100">Observação: {order.notes}</p>}
+                        <div className="flex justify-between border-t border-white/[0.08] pt-2 text-zinc-400">
+                          <span>Total do pedido</span>
+                          <span className="font-bold text-zinc-200 num">{brl(order.total)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => order.status === "saiu" ? markArrived(order) : markDelivered(order)}
                       disabled={busy}
                       className="btn btn-light w-full !py-3 text-sm"
                     >
@@ -213,7 +249,7 @@ export default function DriverPanel({
                       ) : (
                         <Check size={16} />
                       )}
-                      Confirmar entrega realizada
+                      {order.status === "saiu" ? "Sinalizar chegada" : "Confirmar entrega realizada"}
                     </button>
                   </div>
                 );
@@ -256,12 +292,42 @@ export default function DriverPanel({
                       </p>
                     )}
 
-                    <div className="flex items-center justify-between text-xs text-zinc-400">
-                      <span>{order.items.length} itens</span>
-                      <span className="font-bold text-white num">
-                        {brl(order.total)}
-                      </span>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-xs space-y-2">
+                      <div className="flex items-center justify-between text-zinc-400">
+                        <span>Frete da entrega</span>
+                        <span className="font-bold text-emerald-300 num">{brl(order.deliveryFee)}</span>
+                      </div>
+                      <div className={`flex justify-between rounded-lg px-2 py-1 ${order.paymentStatus === "pendente" ? "bg-amber-400/10 text-amber-200" : "text-zinc-500"}`}>
+                        <span>Pagamento</span>
+                        <span className="font-semibold">{PAYMENT_LABEL[order.payment]}{order.paymentStatus === "pago" ? " · Pago" : " · Pendente"}</span>
+                      </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setExpandedOrderId((current) => current === order.id ? null : order.id)}
+                      className="w-full rounded-xl border border-white/10 px-3 py-2 text-left text-xs font-bold text-zinc-300 hover:border-white/20 hover:text-white"
+                      aria-expanded={expandedOrderId === order.id}
+                    >
+                      {expandedOrderId === order.id ? "Ocultar detalhes" : "Ver detalhes do pedido"}
+                    </button>
+
+                    {expandedOrderId === order.id && (
+                      <div className="rounded-xl border border-white/[0.08] bg-black/20 p-3 text-xs space-y-2">
+                        <p className="font-bold uppercase tracking-wider text-zinc-500">Itens do pedido</p>
+                        {order.items.map((item) => (
+                          <div key={item.productId} className="flex justify-between text-zinc-300">
+                            <span>{item.qty}x {item.name}</span>
+                            <span className="num">{brl(item.price * item.qty)}</span>
+                          </div>
+                        ))}
+                        {order.notes && <p className="rounded-lg bg-amber-400/10 p-2 text-amber-100">Observação: {order.notes}</p>}
+                        <div className="flex justify-between border-t border-white/[0.08] pt-2 text-zinc-400">
+                          <span>Total do pedido</span>
+                          <span className="font-bold text-zinc-200 num">{brl(order.total)}</span>
+                        </div>
+                      </div>
+                    )}
 
                     <button
                       onClick={() => takeOrder(order)}
@@ -304,7 +370,7 @@ export default function DriverPanel({
                     </p>
                   </div>
                   <span className="font-bold text-emerald-400 num">
-                    {brl(order.total)}
+                    Frete: {brl(order.deliveryFee)}
                   </span>
                 </div>
               ))

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import DriverPanel from "@/components/driver/DriverPanel";
+import { isVisibleToDriver } from "@/lib/delivery";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,8 @@ export default async function DriverPage() {
 
   const db = await getDb();
 
-  const deliveries = db.orders.filter(
-    (o) =>
-      o.type === "delivery" &&
-      (o.status === "pronto" || o.status === "saiu" || o.status === "concluido"),
+  const deliveries = db.orders.filter((order) =>
+    isVisibleToDriver(order, session.userId),
   );
 
   return (
