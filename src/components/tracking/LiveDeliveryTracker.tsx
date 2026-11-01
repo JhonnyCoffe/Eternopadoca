@@ -13,7 +13,6 @@ export interface LiveDeliveryTrackerProps {
 
 export default function LiveDeliveryTracker({ orderCode, trackingToken, orderStatus, initialLocation }: LiveDeliveryTrackerProps) {
   const [location, setLocation] = useState<DeliveryLocation | null>(initialLocation ?? null);
-  const [connection, setConnection] = useState("idle");
   const sseRef = useRef<EventSource | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -75,14 +74,8 @@ export default function LiveDeliveryTracker({ orderCode, trackingToken, orderSta
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs">
-        <span className={`h-2 w-2 rounded-full ${connection === "live" ? "bg-emerald-400 animate-pulse" : connection === "polling" ? "bg-amber-400" : "bg-rose-400"}`} />
-        <span className="font-bold text-zinc-300">
-          {connection === "live" && "Ao vivo"}
-          {connection === "polling" && "Atualização periódica"}
-          {connection === "reconnecting" && "Reconectando..."}
-          {connection === "connecting" && "Conectando..."}
-          {connection === "idle" && "Aguardando"}
-        </span>
+        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="font-bold text-zinc-300">Ao vivo</span>
       </div>
       {location ? (
         <DeliveryMap latitude={location.latitude} longitude={location.longitude} orderCode={orderCode} />

@@ -1,0 +1,15 @@
+{
+  "nodes": [
+    {
+      "id": "node-1",
+      "x": 0,
+      "y": 0,
+      "width": 400,
+      "height": 200,
+      "type": "text",
+      "text": "## Assunto: geral\n\n\n\nTags: #opencode #claude-mem #sessao #geral\nResumo: \nContexto: [[contexto/geral]]\nFonte: claude-mem",
+      "color": "#7a7a7a"
+    }
+  ],
+  "edges": []
+}
