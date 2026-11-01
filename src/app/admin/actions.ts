@@ -10,6 +10,7 @@ import {
   setSession,
   type Session,
 } from "@/lib/auth";
+import { clearDeliveryLocation } from "@/lib/location";
 import { hashPassword } from "@/lib/password";
 import type { OrderStatus, Role, Weekday } from "@/lib/types";
 import { ORDER_STATUS_LABEL, ROLE_HOME } from "@/lib/types";
@@ -397,7 +398,12 @@ export async function updateOrderStatus(
     return { ok: true as const };
   });
 
-  if (result.ok) refreshAll();
+  if (result.ok) {
+    if (["chegou", "concluido", "cancelado"].includes(status)) {
+      await clearDeliveryLocation(id);
+    }
+    refreshAll();
+  }
   return result;
 }
 

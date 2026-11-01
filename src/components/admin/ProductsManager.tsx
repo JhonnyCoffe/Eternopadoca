@@ -419,12 +419,6 @@ export default function ProductsManager({
           <ul className="divide-y divide-white/[0.06]">
             {filtered.map((product) => {
               const cat = categories.find((c) => c.id === product.categoryId);
-              const isLowStock =
-                product.trackStock &&
-                (product.stock ?? 0) <= (product.lowStockAt ?? 5);
-              const isOutOfStock =
-                product.trackStock && (product.stock ?? 0) <= 0;
-
               const cost = product.cost ?? 0;
               const margin = product.price - cost;
               const pct = product.price > 0 ? (margin / product.price) * 100 : 0;
@@ -465,19 +459,19 @@ export default function ProductsManager({
                           Destaque
                         </span>
                       )}
-                      {product.trackStock && (
+                      {(product.trackStock || (product.stock ?? 0) > 0) && (
                         <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                            isOutOfStock
+                          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-black ${
+                            product.trackStock && (product.stock ?? 0) <= 0
                               ? "bg-red-500/25 text-red-300 border border-red-500/30"
-                              : isLowStock
+                              : product.trackStock && (product.stock ?? 0) <= (product.lowStockAt ?? 5)
                               ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                               : "bg-emerald-500/15 text-emerald-300"
                           }`}
                         >
-                          {isOutOfStock
+                          {product.trackStock && (product.stock ?? 0) <= 0
                             ? "Esgotado (0 un)"
-                            : `Estoque: ${product.stock} un`}
+                            : `Estoque: ${product.stock ?? 0} un`}
                         </span>
                       )}
                     </div>
