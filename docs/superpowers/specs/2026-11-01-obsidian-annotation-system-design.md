@@ -1,7 +1,7 @@
 # Sistema de anotação Obsidian (híbrido: histórico + captura contínua)
 
 ## Intenção
-Catalogar todo histórico de chat OpenCode e Claude Mem no vault `Obsidian/` como notas `.md` com assunto, contexto, links internos, tags e resumo. Criar contexto automaticamente quando ausente.
+Catalogar todo histórico de chat OpenCode e Claude Mem no vault `Obsidian/` como notas `.canvas` (visual Obsidian) com assunto, contexto, links internos, tags e resumo. Criar contexto automaticamente quando ausente.
 
 ## Objetivos
 - Importar histórico existente (`claude-mem.db`, `corpora/`, logs `.claude-mem/`, `opencode.json` e skills).

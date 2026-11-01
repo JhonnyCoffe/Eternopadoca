@@ -9,10 +9,12 @@ export function onMessage(event) {
   // Classifica por palavra-chave simples
   const assunto = classifySubject(text);
   const contextoLink = findOrCreateContext(assunto);
-  const fileName = `${new Date().toISOString().split('T')[0]}-${assunto}-${Date.now()}.md`;
-  const filePath = path.join(VAULT, fileName);
-  const noteContent = generateNote({ assunto, texto: text, resumo: text.slice(0, 200), contexto: contextoLink, fonte: 'plugin-live' });
-  fs.writeFileSync(filePath, noteContent);
+  const fileName = `${new Date().toISOString().split('T')[0]}-${assunto}-${Date.now()}.canvas`;
+  const canvasContent = JSON.stringify({
+    nodes: [{ id: `live-${Date.now()}`, x: 0, y: 0, width: 400, height: 200, type: 'text', text: `## ${assunto}\n\n${text}\nTags: #opencode #claude-mem #sessao #${assunto}`, color: '#7a7a7a' }],
+    edges: [],
+  }, null, 2);
+  fs.writeFileSync(path.join(VAULT, fileName), canvasContent);
 }
 
 function classifySubject(text) {

@@ -56,9 +56,24 @@ export function runImport() {
       contexto: contextoLink,
       fonte: 'claude-mem',
     });
-    const fileName = `${new Date().toISOString().split('T')[0]}-${assunto}-${row.id}.md`;
-    const filePath = path.join(VAULT, fileName);
-    fs.writeFileSync(filePath, noteContent);
+    const fileName = `${new Date().toISOString().split('T')[0]}-${assunto}-${row.id}.canvas`;
+    const canvasContent = JSON.stringify({
+      nodes: [
+        {
+          id: `node-${row.id}`,
+          x: 0,
+          y: 0,
+          width: 400,
+          height: 200,
+          type: 'text',
+          text: `## Assunto: ${assunto}\n\n${row.text || ''}\n\nTags: #opencode #claude-mem #sessao #${assunto}\nResumo: ${(row.text || '').slice(0, 200)}\nContexto: [[contexto/${assunto || 'geral'}]]\nFonte: claude-mem`,
+          color: '#7a7a7a',
+        },
+      ],
+      edges: [],
+    }, null, 2);
+    const filePath = path.join(VAULT, fileName.replace('.md', '.canvas'));
+    fs.writeFileSync(filePath, canvasContent);
   }
   return rows.length;
 }
