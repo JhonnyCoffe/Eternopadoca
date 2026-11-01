@@ -14,6 +14,7 @@ import {
   Phone,
   RefreshCw,
 } from "lucide-react";
+import DeliveryLocationPublisher from "./DeliveryLocationPublisher";
 import type { Order } from "@/lib/types";
 import { PAYMENT_LABEL } from "@/lib/types";
 import { brl, onlyDigits } from "@/lib/format";
@@ -198,6 +199,15 @@ export default function DriverPanel({
                         <Phone size={14} /> WhatsApp
                       </a>
                     </div>
+
+                    {order.status === "saiu" && (
+                      <DeliveryLocationPublisher
+                        orderId={order.id}
+                        code={order.code}
+                        status={order.status}
+                        trackingToken={undefined}
+                      />
+                    )}
 
                     <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-xs space-y-2">
                       <div className="flex justify-between text-zinc-400">
