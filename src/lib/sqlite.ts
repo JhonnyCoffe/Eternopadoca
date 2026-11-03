@@ -20,6 +20,7 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS delivery_zones (id TEXT PRIMARY KEY, data TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS order_locations (order_id TEXT PRIMARY KEY NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, accuracy REAL NOT NULL, heading REAL, speed REAL, updated_at TEXT NOT NULL);
   CREATE INDEX IF NOT EXISTS idx_order_locations_updated_at ON order_locations (updated_at);
+  CREATE TABLE IF NOT EXISTS stores (id TEXT PRIMARY KEY, subdomain TEXT NOT NULL UNIQUE, name TEXT NOT NULL, active INTEGER DEFAULT 1, created_at TEXT NOT NULL, data TEXT);
 `;
 
 function parse<T>(value: string): T {
