@@ -207,6 +207,7 @@ export default function AdminShell({
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               {ROLE_LABEL[role]} · {userName}
             </p>
+            <p className="text-[9px] font-medium text-zinc-600 truncate max-w-[120px]">{typeof window !== "undefined" ? window.location.hostname : ""}</p>
           </div>
           <Link
             href="/"
