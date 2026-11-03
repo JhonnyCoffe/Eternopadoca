@@ -87,7 +87,7 @@ export default function StoreFront({ settings, categories, products }: Props) {
 
   const clear = () => setCart({});
 
-  const ordered = [...categories].sort((a, b) => a.order - b.order);
+  const ordered = [...categories].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const filtered = products.filter((p) => {
     if (!p.active) return false;

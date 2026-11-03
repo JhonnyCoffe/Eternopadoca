@@ -3,7 +3,7 @@ import fsSync from "fs";
 import path from "path";
 import type { Db, DayHours, Weekday } from "./types";
 import { seedDb, createOwner } from "./seed";
-import { openSqliteDb, initializeSqlite, readSqliteDb, writeSqliteDb, importJsonIfEmpty } from "./sqlite";
+import { openSqliteDb, initializeSqlite, readSqliteDb, writeSqliteDb, importJsonIfEmpty } from "./sqlite.cjs";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -41,11 +41,12 @@ export function normalizeDb(raw: Db): Db {
   // do painel fica impossível.
   if (db.users.length === 0) db.users.push(createOwner());
 
+  const currentSettings = db.settings ?? ({} as Db["settings"]);
   db.settings = {
-    ...db.settings,
-    autoHours: db.settings.autoHours ?? false,
-    hours: { ...defaultHours(), ...(db.settings.hours ?? {}) },
-    deliveryZones: db.settings.deliveryZones ?? [],
+    ...currentSettings,
+    autoHours: currentSettings.autoHours ?? false,
+    hours: { ...defaultHours(), ...(currentSettings.hours ?? {}) },
+    deliveryZones: currentSettings.deliveryZones ?? [],
   };
 
   for (const product of db.products) {
@@ -124,22 +125,22 @@ async function writeFile(content: string): Promise<void> {
  */
 let sqliteStore: ReturnType<typeof openSqliteDb> | null = null;
 
-function getSqliteStore() {
+async function getSqliteStore() {
   fsSync.mkdirSync(DATA_DIR, { recursive: true });
   sqliteStore ??= openSqliteDb(SQLITE_PATH);
-  initializeSqlite(sqliteStore);
+  await initializeSqlite(sqliteStore);
   return sqliteStore;
 }
 
 export async function getDb(): Promise<Db> {
   if (USE_SQLITE) {
-    const store = getSqliteStore();
-    const current = readSqliteDb(store);
+    const store = await getSqliteStore();
+    const current = await readSqliteDb(store);
     if (current.settings?.storeName && current.products.length > 0 && current.users.length > 0) return normalizeDb(current);
     const raw = await readFile();
     const source = raw === null ? seedDb() : JSON.parse(raw.replace(/^\uFEFF/, "")) as Db;
-    importJsonIfEmpty(store, normalizeDb(source));
-    return normalizeDb(readSqliteDb(store));
+    await importJsonIfEmpty(store, normalizeDb(source));
+    return normalizeDb(await readSqliteDb(store));
   }
 
   const raw = await readFile();
@@ -154,7 +155,7 @@ export async function getDb(): Promise<Db> {
 export async function saveDb(db: Db): Promise<void> {
   await withWriteLock(async () => {
     if (USE_SQLITE) {
-      writeSqliteDb(getSqliteStore(), normalizeDb(db));
+      await writeSqliteDb(await getSqliteStore(), normalizeDb(db));
       return;
     }
     await writeFile(JSON.stringify(db, null, 2));
@@ -165,7 +166,7 @@ export async function mutateDb<T>(fn: (db: Db) => T | Promise<T>): Promise<T> {
   return withWriteLock(async () => {
     const db = await getDb();
     const result = await fn(db);
-    if (USE_SQLITE) writeSqliteDb(getSqliteStore(), normalizeDb(db));
+    if (USE_SQLITE) await writeSqliteDb(await getSqliteStore(), normalizeDb(db));
     else await writeFile(JSON.stringify(db, null, 2));
     return result;
   });

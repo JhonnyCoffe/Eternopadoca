@@ -16,7 +16,7 @@ import Link from "next/link";
 import type { Category, Order, Product, Settings } from "@/lib/types";
 import { ORDER_STATUS_LABEL, PAYMENT_LABEL } from "@/lib/types";
 import { brl } from "@/lib/format";
-import { isLowStock, orderCost } from "@/lib/store";
+import { isLowStock, orderCost } from "@/lib/store-utils";
 
 const STATUS_COLORS: Record<string, string> = {
   novo: "#e11d48",

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { openSqliteDb, initializeSqlite } from "@/lib/sqlite";
+import { getDb } from "@/lib/db";
+import { saveDeliveryLocation } from "@/lib/location";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
   try {
@@ -11,35 +12,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ord
       return NextResponse.json({ ok: false, error: "Dados incompletos" }, { status: 400 });
     }
 
-    const store = openSqliteDb();
-    initializeSqlite(store);
-
-    // Validar pedido em 'saiu'
-    const orderRow = store.db.prepare("SELECT data FROM orders WHERE id = ?").get(orderId) as { data: string } | undefined;
-    if (!orderRow) {
-      store.close();
+    const db = await getDb();
+    const order = db.orders.find((o) => o.id === orderId);
+    if (!order) {
       return NextResponse.json({ ok: false, error: "Pedido não encontrado" }, { status: 404 });
     }
-    const order = JSON.parse(orderRow.data);
     if (order.status !== "saiu") {
-      store.close();
       return NextResponse.json({ ok: false, error: "Status não permite localização" }, { status: 403 });
     }
 
-    store.db.prepare(`
-      INSERT INTO order_locations (order_id, latitude, longitude, accuracy, heading, speed, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(order_id) DO UPDATE SET
-        latitude = excluded.latitude,
-        longitude = excluded.longitude,
-        accuracy = excluded.accuracy,
-        heading = excluded.heading,
-        speed = excluded.speed,
-        updated_at = excluded.updated_at
-    `).run(orderId, latitude, longitude, accuracy ?? null, heading ?? null, speed ?? null, new Date().toISOString());
+    const updatedAt = new Date().toISOString();
+    await saveDeliveryLocation({ orderId, latitude, longitude, accuracy, heading, speed, updatedAt });
 
-    store.close();
-    return NextResponse.json({ ok: true, updatedAt: new Date().toISOString() });
+    return NextResponse.json({ ok: true, updatedAt });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Erro";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });

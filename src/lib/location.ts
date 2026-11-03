@@ -1,8 +1,32 @@
 import type { DeliveryLocation } from "./types";
-import { openSqliteDb } from "./sqlite";
+import { openSqliteDb, initializeSqlite } from "./sqlite.cjs";
 
-function db() {
-  return openSqliteDb();
+async function withDb<T>(fn: (db: any) => Promise<T>): Promise<T> {
+  const store: any = openSqliteDb();
+  try {
+    await initializeSqlite(store);
+    return await fn(store.db);
+  } finally {
+    try { store.close(); } catch { /* noop */ }
+  }
+}
+
+function run(db: any, sql: string, params: unknown[] = []): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, (err: Error | null) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+}
+
+function get<T>(db: any, sql: string, params: unknown[] = []): Promise<T | undefined> {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err: Error | null, row: T | undefined) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
 }
 
 export function isValidLocationPayload(input: unknown): boolean {
@@ -11,16 +35,18 @@ export function isValidLocationPayload(input: unknown): boolean {
   const lat = i.latitude;
   const lng = i.longitude;
   if (typeof lat !== "number" || typeof lng !== "number") return false;
-  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+  if (lat < -90 || lat > 90) return false;
+  if (lng < -180 || lng > 180) return false;
   return true;
 }
 
 export async function getDeliveryLocation(orderId: string): Promise<DeliveryLocation | null> {
-  const store = db();
-  try {
-    const row = store.db.prepare("SELECT order_id, latitude, longitude, accuracy, heading, speed, updated_at FROM order_locations WHERE order_id = ?").get(orderId) as
-      | { order_id: string; latitude: number; longitude: number; accuracy?: number; heading?: number; speed?: number; updated_at: string }
-      | undefined;
+  return withDb(async (db) => {
+    const row = await get<{ order_id: string; latitude: number; longitude: number; accuracy?: number; heading?: number; speed?: number; updated_at: string }>(
+      db,
+      "SELECT order_id, latitude, longitude, accuracy, heading, speed, updated_at FROM order_locations WHERE order_id = ?",
+      [orderId]
+    );
     if (!row) return null;
     return {
       orderId: row.order_id,
@@ -31,33 +57,29 @@ export async function getDeliveryLocation(orderId: string): Promise<DeliveryLoca
       speed: row.speed ?? undefined,
       updatedAt: row.updated_at,
     };
-  } finally {
-    store.close();
-  }
+  });
 }
 
 export async function saveDeliveryLocation(location: DeliveryLocation): Promise<void> {
-  const store = db();
-  try {
-    store.db.prepare("INSERT OR REPLACE INTO order_locations (order_id, latitude, longitude, accuracy, heading, speed, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
-      location.orderId,
-      location.latitude,
-      location.longitude,
-      location.accuracy ?? null,
-      location.heading ?? null,
-      location.speed ?? null,
-      location.updatedAt
+  return withDb(async (db) => {
+    await run(
+      db,
+      "INSERT OR REPLACE INTO order_locations (order_id, latitude, longitude, accuracy, heading, speed, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [
+        location.orderId,
+        location.latitude,
+        location.longitude,
+        location.accuracy ?? null,
+        location.heading ?? null,
+        location.speed ?? null,
+        location.updatedAt,
+      ]
     );
-  } finally {
-    store.close();
-  }
+  });
 }
 
 export async function clearDeliveryLocation(orderId: string): Promise<void> {
-  const store = db();
-  try {
-    store.db.prepare("DELETE FROM order_locations WHERE order_id = ?").run(orderId);
-  } finally {
-    store.close();
-  }
+  return withDb(async (db) => {
+    await run(db, "DELETE FROM order_locations WHERE order_id = ?", [orderId]);
+  });
 }

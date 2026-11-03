@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb, saveDb } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     if (!order) return NextResponse.json({ ok: false, error: "não encontrado" }, { status: 404 });
     order.paymentStatus = "pago";
     order.paidAt = new Date().toISOString();
-    await db.save();
+    await saveDb(db);
     return NextResponse.json({ ok: true, code });
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 });

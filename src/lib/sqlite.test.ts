@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { openSqliteDb, initializeSqlite, readSqliteDb, writeSqliteDb, importJsonIfEmpty } from "./sqlite.ts";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { openSqliteDb, initializeSqlite, readSqliteDb, writeSqliteDb, importJsonIfEmpty } = require("./sqlite.cjs");
 
 function fixtureDb() {
   const hours = Object.fromEntries(Array.from({ length: 7 }, (_, index) => [String(index), { closed: false, open: "18:00", close: "23:30" }])) as import("./types").Db["settings"]["hours"];
@@ -19,12 +22,13 @@ test("initializes SQLite schema", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "brasa-sqlite-"));
   const store = openSqliteDb(path.join(dir, "app.sqlite"));
 
-  initializeSqlite(store);
-  assert.deepEqual(store.tables(), [
+  await initializeSqlite(store);
+  assert.deepEqual(await store.tables(), [
     "categories",
     "delivery_zones",
     "messages",
     "order_items",
+    "order_locations",
     "orders",
     "products",
     "settings",
@@ -38,7 +42,7 @@ test("initializes SQLite schema", async () => {
 test("round trips complete database state through SQLite", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "brasa-sqlite-"));
   const store = openSqliteDb(path.join(dir, "app.sqlite"));
-  initializeSqlite(store);
+  await initializeSqlite(store);
   const db = fixtureDb();
   db.products[0].badge = "Teste";
   db.orders.push({
@@ -48,8 +52,8 @@ test("round trips complete database state through SQLite", async () => {
   });
   db.messages.push({ id: "message-1", orderId: "order-1", from: "cliente", author: "Cliente", text: "OlÃ¡", createdAt: new Date().toISOString(), readByStore: false, readByCustomer: true });
 
-  writeSqliteDb(store, db);
-  const actual = readSqliteDb(store);
+  await writeSqliteDb(store, db);
+  const actual = await readSqliteDb(store);
   assert.deepEqual(actual.settings, db.settings);
   assert.deepEqual(actual.categories, db.categories);
   assert.deepEqual(actual.products, db.products);
@@ -64,14 +68,13 @@ test("round trips complete database state through SQLite", async () => {
 test("imports JSON only when SQLite is empty", async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), "brasa-sqlite-"));
   const store = openSqliteDb(path.join(dir, "app.sqlite"));
-  initializeSqlite(store);
+  await initializeSqlite(store);
   const db = fixtureDb();
 
-  assert.equal(importJsonIfEmpty(store, db), true);
-  assert.equal(importJsonIfEmpty(store, fixtureDb()), false);
-  assert.equal(readSqliteDb(store).products.length, db.products.length);
+  assert.equal(await importJsonIfEmpty(store, db), true);
+  assert.equal(await importJsonIfEmpty(store, fixtureDb()), false);
+  assert.equal((await readSqliteDb(store)).products.length, db.products.length);
 
   store.close();
   await rm(dir, { recursive: true, force: true });
 });
-

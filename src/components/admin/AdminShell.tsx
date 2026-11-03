@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -97,6 +98,10 @@ export default function AdminShell({
   const pathname = usePathname();
   const visible = links.filter((l) => l.roles.includes(role));
   const initials = storeName.slice(0, 2).toUpperCase();
+  const [hostname, setHostname] = useState("");
+  useEffect(() => {
+    if (typeof window !== "undefined") setHostname(window.location.hostname);
+  }, []);
 
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
@@ -200,14 +205,14 @@ export default function AdminShell({
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand)] to-[var(--brand-strong)] text-xs font-black text-white">
             {initials}
           </span>
-          <div className="min-w-0 flex-1">
+          <div suppressHydrationWarning className="min-w-0 flex-1">
             <p className="truncate text-sm font-extrabold leading-tight">
               {storeName}
             </p>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               {ROLE_LABEL[role]} · {userName}
             </p>
-            <p className="text-[9px] font-medium text-zinc-600 truncate max-w-[120px]">{typeof window !== "undefined" ? window.location.hostname : ""}</p>
+            <p className="text-[9px] font-medium text-zinc-600 truncate max-w-[120px]">{hostname}</p>
           </div>
           <Link
             href="/"
