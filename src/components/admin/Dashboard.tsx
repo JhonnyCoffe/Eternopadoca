@@ -178,6 +178,9 @@ export default function Dashboard({
           <Link href="/admin/produtos" className="btn btn-light">
             <UtensilsCrossed size={14} /> Cardápio
           </Link>
+          <a href="/api/admin/report/csv" className="btn btn-ghost" download>
+            <Receipt size={14} /> Relatório CSV
+          </a>
           <Link href="/admin/pedidos" className="btn btn-ghost">
             Pedidos <ArrowUpRight size={14} />
           </Link>
