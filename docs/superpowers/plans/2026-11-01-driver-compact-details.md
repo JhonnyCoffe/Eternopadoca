@@ -10,9 +10,9 @@
 
 ## Tasks
 
-- [ ] Adicionar estado `expandedOrderId` e alternância acessível.
-- [ ] Mostrar endereço, pagamento e frete no resumo persistente.
-- [ ] Mostrar itens, observações e total no painel expandido.
-- [ ] Destacar pagamento pendente e dinheiro.
-- [ ] Manter ações GPS, WhatsApp e status fora do painel expansível.
-- [ ] Rodar detector visual, lint e build.
+- [x] Adicionar estado `expandedOrderId` e alternância acessível.
+- [x] Mostrar endereço, pagamento e frete no resumo persistente.
+- [x] Mostrar itens, observações e total no painel expandido.
+- [x] Destacar pagamento pendente e dinheiro.
+- [x] Manter ações GPS, WhatsApp e status fora do painel expansível.
+- [x] Rodar detector visual, lint e build.

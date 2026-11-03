@@ -1,0 +1,15 @@
+{
+  "nodes": [
+    {
+      "id": "node-9999",
+      "x": 0,
+      "y": 0,
+      "width": 400,
+      "height": 200,
+      "type": "text",
+      "text": "## Assunto: design\n\nDesign do sistema de entrega em tempo real com rastreamento GPS\n\nTags: #opencode #claude-mem #sessao #design\nResumo: Design do sistema de entrega em tempo real com rastreamento GPS\nContexto: [[contexto/design]]\nFonte: claude-mem",
+      "color": "#7a7a7a"
+    }
+  ],
+  "edges": []
+}

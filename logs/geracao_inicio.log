@@ -1,0 +1,6 @@
+COMFYUI START: D:\ComfyUI\venv\Scripts\python.exe main.py --directml --port 8188
+LANCADO: 2026-11-03 | BATCH=1/133 | FP16 | DirectML RX 580 | 8GB VRAM
+STATUS: Iniciado. 133 imagens. ~17 min/imed. Total ~37h.
+PRODUTOS: Antarctica, Império, Skol, Itaipava + 129 restantes (CSV prompts/produtos.csv)
+CHECKPOINT: sdxl-1.0-base-fp16.safetensors
+OUTPUT: D:\ComfyUI\output\produto_batch_*

@@ -16,7 +16,7 @@ import Link from "next/link";
 import type { Order, OrderStatus, Settings } from "@/lib/types";
 import { ORDER_STATUS_LABEL, PAYMENT_LABEL } from "@/lib/types";
 import { brl, formatDate, onlyDigits } from "@/lib/format";
-import { mapsSearchUrl } from "@/lib/orders";
+import { mapsSearchUrl, mapsRouteUrl } from "@/lib/orders";
 import LiveDeliveryTracker from "./LiveDeliveryTracker";
 import OrderChat from "@/components/chat/OrderChat";
 
@@ -153,6 +153,19 @@ export default function TrackingView({
               trackingToken={undefined}
               orderStatus={order.status}
             />
+          )}
+
+          {isDelivery && order.status === "saiu" && (
+            <a
+              href={mapsRouteUrl(order.address || settings.address || "")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0e0e13]/80 border border-white/[0.08] px-4 py-3 text-xs font-semibold text-rose-300 hover:bg-[#0e0e13] transition"
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              Ver rota no Google Maps
+              <ExternalLink className="h-3 w-3 opacity-60" />
+            </a>
           )}
 
           {/* PROGRESSO */}
