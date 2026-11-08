@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import { isAuthenticated } from "@/lib/auth";
+import { getStorageProvider } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -58,14 +57,15 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const fileName = `${crypto.randomUUID()}.${ext}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const contentType = file.type;
 
-  await fs.mkdir(uploadDir, { recursive: true });
-  await fs.writeFile(path.join(uploadDir, fileName), buffer);
+  const storage = getStorageProvider();
+  const result = await storage.upload(buffer, fileName, contentType);
 
   return NextResponse.json({
     ok: true,
-    url: `/uploads/${fileName}`,
-    bytes: file.size,
+    url: result.url,
+    key: result.key,
+    bytes: result.bytes,
   });
 }
