@@ -4,10 +4,23 @@ import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import { buildOrder, type CreateOrderInput } from "@/lib/orders";
 import { isStoreOpen } from "@/lib/store";
 
+const TERMS_VERSION = "1.0";
+
+function getClientIp(request: Request): string | undefined {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return undefined;
+}
+
 export async function POST(request: Request) {
   let body: CreateOrderInput;
   try {
-    body = (await request.json()) as CreateOrderInput;
+    const json = (await request.json()) as Record<string, unknown>;
+    body = {
+      ...json,
+      termsVersion: TERMS_VERSION,
+      termsIp: getClientIp(request),
+    } as CreateOrderInput;
   } catch {
     return NextResponse.json(
       { ok: false, error: "Requisição inválida." },

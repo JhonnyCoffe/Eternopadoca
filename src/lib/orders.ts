@@ -18,6 +18,13 @@ export type CreateOrderInput = {
   payment?: PaymentMethod;
   notes?: string;
   zoneId?: string;
+  /** LGPD: aceite dos termos e política de privacidade */
+  termsAccepted?: boolean;
+  termsVersion?: string;
+  /** LGPD: consentimento separado para marketing (opt-in) */
+  marketingConsent?: boolean;
+  /** LGPD: IP do cliente no momento do aceite */
+  termsIp?: string;
 };
 
 export type CreateOrderResult =
@@ -97,6 +104,10 @@ export function buildOrder(db: Db, body: CreateOrderInput): CreateOrderResult {
   const address = String(body.address ?? "").trim();
   const notes = String(body.notes ?? "").trim().slice(0, 500);
   const zoneId = body.zoneId ? String(body.zoneId) : undefined;
+  const termsAccepted = Boolean(body.termsAccepted);
+  const termsVersion = body.termsVersion ? String(body.termsVersion) : undefined;
+  const marketingConsent = Boolean(body.marketingConsent);
+  const termsIp = body.termsIp ? String(body.termsIp) : undefined;
 
   if (customerName.length < 2) {
     return { ok: false, error: "Informe seu nome completo.", status: 400 };
@@ -105,6 +116,13 @@ export function buildOrder(db: Db, body: CreateOrderInput): CreateOrderResult {
     return {
       ok: false,
       error: "Informe um WhatsApp válido com DDD.",
+      status: 400,
+    };
+  }
+  if (!termsAccepted) {
+    return {
+      ok: false,
+      error: "Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.",
       status: 400,
     };
   }
@@ -145,6 +163,11 @@ export function buildOrder(db: Db, body: CreateOrderInput): CreateOrderResult {
     status: "novo",
     zoneId: type === "delivery" ? zone?.id : undefined,
     zoneName: type === "delivery" ? zone?.name : undefined,
+    termsAccepted,
+    termsVersion,
+    termsAcceptedAt: termsAccepted ? new Date().toISOString() : undefined,
+    termsIp,
+    marketingConsent,
   };
 
   // Baixa de estoque junto com o pedido
