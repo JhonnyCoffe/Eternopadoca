@@ -187,6 +187,11 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
               placeholder="https://..."
               className="input"
             />
+            <p className="text-[10px] text-amber-300 mt-1">
+              ⚠️ Use apenas logotipos de sua propriedade ou para os quais você
+              tenha autorização por escrito. Não use marcas de clientes ou
+              terceiros sem permissão.
+            </p>
           </Field>
           <Field label="URL da imagem de capa">
             <input
