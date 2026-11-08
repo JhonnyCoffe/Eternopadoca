@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import {
   Clock,
   MapPin,
@@ -14,60 +15,122 @@ import {
 } from "lucide-react";
 import type { Category, Product, Settings } from "@/lib/types";
 import { brl } from "@/lib/format";
+import { getStoreData } from "@/app/actions/get-store-data";
 import CartDrawer, { type CartLine } from "./CartDrawer";
+import ProductCard from "./ProductCard";
 
-type Props = {
-  settings: Settings;
-  categories: Category[];
-  products: Product[];
-};
-
-export default function StoreFront({ settings, categories, products }: Props) {
+export default function StoreFront() {
+  const [data, setData] = useState<{
+    settings: Settings;
+    categories: Category[];
+    products: Product[];
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState<string>("todos");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
+  const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   const storageKey = "brasa_cart_v1";
 
   useEffect(() => {
+    getStoreData().then((d) => {
+      setData(d);
+      setLoading(false);
+    });
+  }, []);
+
+  // Sincroniza carrinho quando a página de produto (ou outra aba) grava no localStorage
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== storageKey) return;
+      try {
+        const cart = e.newValue ? (JSON.parse(e.newValue) as Record<string, number>) : {};
+        setCart(cart);
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [storageKey]);
+
+  useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
-      // Hidratação: o carrinho só existe no navegador, então carregamos após montar.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setCart(JSON.parse(raw));
     } catch {
       /* ignore */
     }
-    setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(cart));
     } catch {
       /* ignore */
     }
-  }, [cart, hydrated]);
+  }, [cart]);
+
+  const settings = data?.settings;
+  const categories = data?.categories ?? [];
+  const products = useMemo(() => data?.products ?? [], [data?.products]);
+
+  const debouncedQuery = useMemo(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    return query;
+  }, [query, debounceTimer]);
 
   const lines: CartLine[] = useMemo(() => {
     return Object.entries(cart)
-      .map(([productId, qty]) => {
+      .map(([rawKey, qty]) => {
+        if (!qty || qty <= 0) return null;
+        // Chave do localStorage: "productId::size:X::flavor:Y"
+        const [productId, ...rest] = rawKey.split("::");
+        const sizePart = rest.find((p) => p.startsWith("size:"));
+        const flavorPart = rest.find((p) => p.startsWith("flavor:"));
+        const size = sizePart ? sizePart.slice("size:".length) : undefined;
+        const flavor = flavorPart ? flavorPart.slice("flavor:".length) : undefined;
+
         const product = products.find((p) => p.id === productId);
-        if (!product || qty <= 0) return null;
-        return { product, qty };
+        if (!product) return null;
+
+        // Preço da variação selecionada, senão preço do produto
+        let unitPrice = product.price;
+        if (size || flavor) {
+          const variant = product.variants?.find(
+            (v) => v.size === size && v.flavor === flavor
+          );
+          if (variant) unitPrice = variant.price;
+        }
+
+        return {
+          product: {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            imageUrl: product.imageUrl,
+          },
+          qty,
+          size,
+          flavor,
+          unitPrice,
+        };
       })
-      .filter((l): l is CartLine => Boolean(l));
+      .filter((l): l is NonNullable<typeof l> => l !== null);
   }, [cart, products]);
 
   const count = lines.reduce((acc, l) => acc + l.qty, 0);
-  const subtotal = lines.reduce((acc, l) => acc + l.product.price * l.qty, 0);
+  const subtotal = lines.reduce((acc, l) => acc + (l.unitPrice ?? l.product.price) * l.qty, 0);
 
   const add = (product: Product) =>
     setCart((prev) => ({ ...prev, [product.id]: (prev[product.id] ?? 0) + 1 }));
+
+  const inc = (productId: string) =>
+    setCart((prev) => ({ ...prev, [productId]: (prev[productId] ?? 0) + 1 }));
 
   const dec = (productId: string) =>
     setCart((prev) => {
@@ -78,13 +141,6 @@ export default function StoreFront({ settings, categories, products }: Props) {
       return next;
     });
 
-  const remove = (productId: string) =>
-    setCart((prev) => {
-      const next = { ...prev };
-      delete next[productId];
-      return next;
-    });
-
   const clear = () => setCart({});
 
   const ordered = [...categories].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -92,7 +148,7 @@ export default function StoreFront({ settings, categories, products }: Props) {
   const filtered = products.filter((p) => {
     if (!p.active) return false;
     const byCat = activeCat === "todos" || p.categoryId === activeCat;
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     const byQuery =
       !q ||
       p.name.toLowerCase().includes(q) ||
@@ -109,20 +165,53 @@ export default function StoreFront({ settings, categories, products }: Props) {
 
   const bestSellers = products.filter((p) => p.active && p.featured);
 
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+    if (debounceTimer) clearTimeout(debounceTimer);
+    const timer = setTimeout(() => {
+      // debounce applied via state above
+    }, 300);
+    setDebounceTimer(timer);
+  }, [debounceTimer]);
+
+  if (loading || !data || !settings) {
+    return (
+      <div className="min-h-screen text-zinc-100 bg-[#121215] flex flex-col items-center justify-center py-20">
+        <div className="space-y-6 max-w-md px-4">
+          <div className="flex flex-col gap-3">
+            <div className="h-8 bg-zinc-900/50 rounded animate-pulse w-3/4" />
+            <div className="h-4 bg-zinc-900/50 rounded animate-pulse w-1/2" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="h-4 bg-zinc-900/50 rounded animate-pulse" style={{ width: "70%" }} />
+            <div className="h-4 bg-zinc-900/50 rounded animate-pulse" style={{ width: "50%" }} />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-24 bg-zinc-900/50 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className="min-h-screen text-zinc-100"
+      className="min-h-screen text-zinc-100 bg-[#121215] w-full mx-auto max-w-6xl px-4 sm:px-6"
       style={{ "--brand": settings.primaryColor } as React.CSSProperties}
+      suppressHydrationWarning
     >
       {/* HEADER */}
-      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#09090b]/70 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#1a1a1f]/60 backdrop-blur-xl transition-all duration-300" suppressHydrationWarning>
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
           <a href="#top" className="flex min-w-0 items-center gap-3">
             {settings.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={settings.logoUrl}
                 alt={settings.storeName}
+                width={40}
+                height={40}
                 className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white/15 shadow-sm"
               />
             ) : (
@@ -177,7 +266,7 @@ export default function StoreFront({ settings, categories, products }: Props) {
               {count > 0 ? brl(subtotal) : "Carrinho"}
             </span>
             {count > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 animate-pop items-center justify-center rounded-full bg-[var(--brand)] px-1 text-[11px] font-black text-white ring-2 ring-[#09090b]">
+              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 animate-pop items-center justify-center rounded-full bg-[var(--brand)] px-1 text-[11px] font-black text-white ring-2 ring-[#1a1a1f]">
                 {count}
               </span>
             )}
@@ -193,7 +282,7 @@ export default function StoreFront({ settings, categories, products }: Props) {
         </div>
 
         {menuOpen && (
-          <div className="animate-fade-in border-t border-white/10 bg-[#09090b] px-4 py-3 md:hidden">
+          <div className="animate-fade-in border-t border-white/[0.08] bg-[#1a1a1f]/80 px-4 py-3 md:hidden backdrop-blur-xl">
             <a
               href="#cardapio"
               onClick={() => setMenuOpen(false)}
@@ -219,159 +308,163 @@ export default function StoreFront({ settings, categories, products }: Props) {
         )}
       </header>
 
-      <main id="top">
-        {/* HERO */}
-        <section className="relative mx-auto mt-4 w-full max-w-6xl px-4 sm:px-6">
-          <div className="relative overflow-hidden rounded-[28px] bg-[#0b0b0d]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={settings.heroImage}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-60"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/10" />
-            <div className="relative z-10 flex flex-col gap-6 px-6 py-12 sm:px-10 sm:py-16 md:py-20">
-              <div className="max-w-xl">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">
-                  <Sparkles size={12} className="text-amber-300" />
-                  Cardápio digital
-                </span>
-                <h1 className="mt-4 text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl">
-                  {settings.storeName}
-                </h1>
-                <p className="mt-3 max-w-md text-[15px] leading-relaxed text-white/80">
-                  {settings.tagline}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur">
-                  <Clock size={14} /> {settings.avgDeliveryTime}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur">
-                  <Store size={14} /> Pedido mín. {brl(settings.minOrder)}
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur">
-                  <MapPin size={14} /> Entrega {brl(settings.deliveryFee)}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <a
-                  href="#cardapio"
-                  className="inline-flex items-center gap-2 rounded-full bg-[var(--brand)] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-black/20 transition hover:brightness-110"
-                >
-                  <ShoppingBag size={16} /> Ver cardápio
-                </a>
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-white/70">
-                  <Star size={14} className="fill-amber-300 text-amber-300" />
-                  4.9 · mais de 2 mil pedidos
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {!settings.isOpen && (
-            <div className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-              Estamos fechados neste momento. Você pode montar seu pedido, mas a
-              loja precisa estar aberta para enviar. ⏰
-            </div>
-          )}
-        </section>
-
-        {/* BUSCA + CATEGORIAS */}
-        <section
-          id="cardapio"
-          className="sticky top-16 z-20 mt-6 border-b border-white/[0.06] bg-[#09090b]/80 backdrop-blur-md"
-        >
-          <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search
-                  size={17}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"
-                />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar no cardápio..."
-                  className="w-full rounded-full border border-white/10 bg-white/[0.04] py-2.5 pl-11 pr-4 text-sm font-medium outline-none transition placeholder:text-zinc-500 focus:border-[var(--brand)] focus:ring-4 focus:ring-orange-500/15"
-                />
-              </div>
-            </div>
-            <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
-              <CategoryPill
-                active={activeCat === "todos"}
-                onClick={() => setActiveCat("todos")}
-                label="Tudo"
-                emoji="✨"
+      <main id="top" className="layout-fix mx-auto w-full px-4 sm:px-6 text-white" suppressHydrationWarning>
+        <div className="max-w-6xl mx-auto" suppressHydrationWarning>
+          {/* HERO */}
+          <section className="relative mx-auto mt-4 w-full max-w-6xl px-4 sm:px-6 animate-page">
+            <div className="relative overflow-hidden rounded-[28px] bg-[#22222a]">
+              <Image
+                src={settings.heroImage}
+                alt=""
+                fill
+                sizes="100vw"
+                loading="eager"
+                className="object-cover opacity-60"
               />
-              {ordered.map((cat) => (
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/10" />
+              <div className="relative z-10 flex flex-col gap-6 px-6 py-12 sm:px-10 sm:py-16 md:py-20">
+                <div className="max-w-xl animate-slide-up">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">
+                    <Sparkles size={12} className="text-amber-300" />
+                    Cardápio digital
+                  </span>
+                  <h1 className="mt-4 text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl">
+                    {settings.storeName}
+                  </h1>
+                  <p className="mt-3 max-w-md text-[15px] leading-relaxed text-white/80">
+                    {settings.tagline}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur">
+                    <Clock size={14} /> {settings.avgDeliveryTime}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur">
+                    <Store size={14} /> Pedido mín. {brl(settings.minOrder)}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur">
+                    <MapPin size={14} /> Entrega {brl(settings.deliveryFee)}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <a
+                    href="#cardapio"
+                    className="inline-flex items-center gap-2 rounded-full bg-[var(--brand)] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-black/20 transition hover:brightness-110"
+                  >
+                    <ShoppingBag size={16} /> Ver cardápio
+                  </a>
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-white/70">
+                    <Star size={14} className="fill-amber-300 text-amber-300" />
+                    4.9 · mais de 2 mil pedidos
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {!settings.isOpen && (
+              <div className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                Estamos fechados neste momento. Você pode montar seu pedido, mas a
+                loja precisa estar aberta para enviar. ⏰
+              </div>
+            )}
+          </section>
+
+          {/* BUSCA + CATEGORIAS */}
+          <section
+            id="cardapio"
+            className="sticky top-16 z-20 mt-6 border-b border-white/[0.06] bg-[#1a1a1f]/80 backdrop-blur-md"
+          >
+            <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search
+                    size={17}
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"
+                  />
+                  <input
+                    value={query}
+                    onChange={handleSearchChange}
+                    placeholder="Buscar no cardápio..."
+                    className="w-full rounded-full border border-white/10 bg-white/[0.04] py-2.5 pl-11 pr-4 text-sm font-medium outline-none transition placeholder:text-zinc-500 focus:border-[var(--brand)] focus:ring-4 focus:ring-orange-500/15"
+                  />
+                </div>
+              </div>
+              <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
                 <CategoryPill
-                  key={cat.id}
-                  active={activeCat === cat.id}
-                  onClick={() => setActiveCat(cat.id)}
-                  label={cat.name}
-                  emoji={cat.emoji}
+                  active={activeCat === "todos"}
+                  onClick={() => setActiveCat("todos")}
+                  label="Tudo"
+                  emoji="✨"
                 />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* PRODUTOS */}
-        <section className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6">
-          {activeCat === "todos" && !query && bestSellers.length > 0 && (
-            <div className="mb-8">
-              <h2 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-                <span className="text-xl">🔥</span> Destaques da casa
-              </h2>
-              <div className="stagger no-scrollbar mt-3 flex gap-4 overflow-x-auto pb-2">
-                {bestSellers.map((p) => (
-                  <div key={p.id} className="w-[260px] shrink-0">
-                    <ProductCard product={p} qty={cart[p.id] ?? 0} onAdd={add} onDec={dec} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {sections.length === 0 && (
-            <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.02] py-16 text-center">
-              <p className="text-3xl">🔎</p>
-              <p className="mt-2 font-bold text-zinc-200">
-                Nada encontrado por aqui
-              </p>
-              <p className="mt-1 text-sm text-zinc-400">
-                Tente outra busca ou escolha outra categoria.
-              </p>
-            </div>
-          )}
-
-          {sections.map(({ cat, items }) => (
-            <div key={cat.id} id={`cat-${cat.id}`} className="mb-9">
-              <div className="mb-4 flex items-baseline gap-2">
-                <h2 className="text-xl font-extrabold tracking-tight">
-                  {cat.emoji} {cat.name}
-                </h2>
-                <span className="text-xs font-semibold text-zinc-500">
-                  {items.length} {items.length === 1 ? "item" : "itens"}
-                </span>
-              </div>
-              <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    qty={cart[p.id] ?? 0}
-                    onAdd={add}
-                    onDec={dec}
+                {ordered.map((cat) => (
+                  <CategoryPill
+                    key={cat.id}
+                    active={activeCat === cat.id}
+                    onClick={() => setActiveCat(cat.id)}
+                    label={cat.name}
+                    emoji={cat.emoji}
                   />
                 ))}
               </div>
             </div>
-          ))}
-        </section>
+          </section>
+
+          {/* PRODUTOS */}
+          <section className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6 sm:px-6">
+            {activeCat === "todos" && !query && bestSellers.length > 0 && (
+              <div className="mb-8">
+                <h2 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
+                  <span className="text-xl">🔥</span> Destaques da casa
+                </h2>
+                <div className="stagger no-scrollbar mt-3 flex gap-4 overflow-x-auto pb-2">
+                  {bestSellers.map((p) => (
+                    <div key={p.id} className="w-[260px] shrink-0">
+                      <ProductCard product={p} qty={cart[p.id] ?? 0} onAdd={add} onDec={dec} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {sections.length === 0 && (
+              <div className="rounded-3xl border border-dashed border-white/15 bg-white/[0.02] py-16 text-center">
+                <p className="text-3xl">🔎</p>
+                <p className="mt-2 font-bold text-zinc-200">
+                  Nada encontrado por aqui
+                </p>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Tente outra busca ou escolha outra categoria.
+                </p>
+              </div>
+            )}
+
+            {sections.map(({ cat, items }) => (
+              <div key={cat.id} id={`cat-${cat.id}`} className="mb-9">
+                <div className="mb-4 flex items-baseline gap-2">
+                  <h2 className="text-xl font-extrabold tracking-tight">
+                    {cat.emoji} {cat.name}
+                  </h2>
+                  <span className="text-xs font-semibold text-zinc-500">
+                    {items.length} {items.length === 1 ? "item" : "itens"}
+                  </span>
+                </div>
+                <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      qty={cart[p.id] ?? 0}
+                      onAdd={add}
+                      onDec={dec}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </section>
+        </div>
       </main>
 
       {/* FOOTER */}
@@ -430,7 +523,7 @@ export default function StoreFront({ settings, categories, products }: Props) {
 
       {/* BARRA MOBILE */}
       {count > 0 && !open && (
-        <div className="fixed inset-x-0 bottom-0 z-30 animate-slide-up border-t border-white/10 bg-[#0b0b0d]/90 p-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-30 animate-slide-up border-t border-white/10 bg-[#22222a]/90 p-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
           <button
             onClick={() => setOpen(true)}
             className="flex w-full items-center justify-between rounded-full bg-[var(--brand)] px-5 py-3.5 text-sm font-bold text-white shadow-lg"
@@ -449,9 +542,8 @@ export default function StoreFront({ settings, categories, products }: Props) {
         lines={lines}
         subtotal={subtotal}
         settings={settings}
-        onAdd={add}
+        onAdd={inc}
         onDec={dec}
-        onRemove={remove}
         onClear={clear}
       />
     </div>
@@ -481,75 +573,5 @@ function CategoryPill({
       <span>{emoji}</span>
       {label}
     </button>
-  );
-}
-
-function ProductCard({
-  product,
-  qty,
-  onAdd,
-  onDec,
-}: {
-  product: Product;
-  qty: number;
-  onAdd: (p: Product) => void;
-  onDec: (id: string) => void;
-}) {
-  return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-white/[0.07] bg-white/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/50">
-      <div className="relative aspect-[4/3] overflow-hidden bg-white/[0.07]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          loading="lazy"
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-        />
-        {product.badge && (
-          <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-zinc-100 shadow-sm backdrop-blur">
-            {product.badge}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-1 flex-col p-4">
-        <h3 className="text-[15px] font-bold leading-tight text-white">
-          {product.name}
-        </h3>
-        <p className="mt-1 line-clamp-2 flex-1 text-[13px] leading-relaxed text-zinc-400">
-          {product.description}
-        </p>
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="text-[15px] font-extrabold text-white">
-            {brl(product.price)}
-          </span>
-          {qty === 0 ? (
-            <button
-              onClick={() => onAdd(product)}
-              className="flex items-center gap-1.5 rounded-full bg-[var(--brand)] px-3.5 py-2 text-xs font-bold text-white transition hover:brightness-110 active:scale-95"
-            >
-              + Adicionar
-            </button>
-          ) : (
-            <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1">
-              <button
-                onClick={() => onDec(product.id)}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-zinc-200 shadow-sm transition hover:text-white"
-                aria-label="Remover um"
-              >
-                −
-              </button>
-              <span className="w-5 text-center text-xs font-black">{qty}</span>
-              <button
-                onClick={() => onAdd(product)}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--brand)] text-sm font-bold text-white shadow-sm transition hover:brightness-110"
-                aria-label="Adicionar um"
-              >
-                +
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </article>
   );
 }

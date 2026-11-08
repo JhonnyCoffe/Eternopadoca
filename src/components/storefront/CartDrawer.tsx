@@ -1,24 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  Bike,
-  CheckCircle2,
-  CreditCard,
-  Loader2,
-  Minus,
-  Plus,
-  Send,
-  ShoppingBag,
-  Store,
-  Trash2,
-  X,
-} from "lucide-react";
-import type { Order, OrderType, PaymentMethod, Product, Settings } from "@/lib/types";
-import { brl, formatPhone, onlyDigits } from "@/lib/format";
-
-export type CartLine = { product: Product; qty: number };
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { X, ShoppingBag, Bike, Store } from "lucide-react";
+import type { OrderType, PaymentMethod, Settings } from "@/lib/types";
+import { brl } from "@/lib/format";
+import { productImage } from "@/lib/image";
 
 type Props = {
   open: boolean;
@@ -26,13 +15,30 @@ type Props = {
   lines: CartLine[];
   subtotal: number;
   settings: Settings;
-  onAdd: (p: Product) => void;
+  onAdd: (id: string) => void;
   onDec: (id: string) => void;
-  onRemove: (id: string) => void;
   onClear: () => void;
 };
 
-type Step = "cart" | "checkout" | "success";
+export type CartLine = {
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    imageUrl: string;
+  };
+  qty: number;
+  size?: string;
+  flavor?: string;
+  unitPrice?: number;
+};
+
+const PAYMENTS: { value: PaymentMethod; label: string }[] = [
+  { value: "pix", label: "Pix" },
+  { value: "cartao", label: "Cartão na entrega" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "vr", label: "Vale refeição" },
+];
 
 export default function CartDrawer({
   open,
@@ -42,523 +48,372 @@ export default function CartDrawer({
   settings,
   onAdd,
   onDec,
-  onRemove,
   onClear,
 }: Props) {
-  const [step, setStep] = useState<Step>("cart");
+  const router = useRouter();
+  const [step, setStep] = useState<"cart" | "checkout">("cart");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [type, setType] = useState<OrderType>("delivery");
   const [address, setAddress] = useState("");
+  const [zoneId, setZoneId] = useState(settings.deliveryZones?.[0]?.id ?? "");
   const [payment, setPayment] = useState<PaymentMethod>("pix");
-  const [zoneId, setZoneId] = useState<string>("");
   const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [placed, setPlaced] = useState<{ order: Order; whatsappUrl: string } | null>(
-    null,
-  );
+  const [error, setError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
-  const activeZones = (settings.deliveryZones ?? []).filter((z) => z.active);
-  const selectedZone = activeZones.find((z) => z.id === zoneId);
+  if (!open) return null;
+
+  const zones = settings.deliveryZones ?? [];
+  const zone = zones.find((z) => z.id === zoneId);
   const deliveryFee =
-    type === "delivery"
-      ? selectedZone
-        ? selectedZone.fee
-        : settings.deliveryFee
-      : 0;
+    type === "delivery" ? (zone?.fee ?? settings.deliveryFee ?? 0) : 0;
   const total = subtotal + deliveryFee;
-  const count = lines.reduce((a, l) => a + l.qty, 0);
 
-  const canSubmit = useMemo(() => {
-    if (!settings.isOpen) return false;
-    if (name.trim().length < 2) return false;
-    if (onlyDigits(phone).length < 10) return false;
-    if (type === "delivery" && address.trim().length < 8) return false;
-    if (subtotal < settings.minOrder) return false;
-    return lines.length > 0;
-  }, [name, phone, type, address, subtotal, settings, lines.length]);
-
-  const resetAll = () => {
+  const close = () => {
     setStep("cart");
-    setPlaced(null);
-    setError("");
-    setNotes("");
-    onClear();
+    setError(null);
     onClose();
   };
 
-  async function submit() {
-    setError("");
-    setLoading(true);
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (sending) return;
+    setError(null);
+    setSending(true);
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: lines.map((l) => ({ productId: l.product.id, qty: l.qty })),
-          customerName: name.trim(),
+          items: lines.map((l) => ({
+              productId: l.product.id,
+              qty: l.qty,
+              size: l.size,
+              flavor: l.flavor,
+            })),
+          customerName: name,
           customerPhone: phone,
           type,
-          address: address.trim(),
+          address: type === "delivery" ? address : undefined,
           payment,
-          notes: notes.trim(),
-          zoneId: type === "delivery" && zoneId ? zoneId : undefined,
+          notes,
+          zoneId: type === "delivery" ? zoneId || undefined : undefined,
+          termsAccepted,
+          marketingConsent,
         }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setError(data.error || "Não foi possível enviar seu pedido. Tente novamente.");
-      } else {
-        setPlaced({ order: data.order, whatsappUrl: data.whatsappUrl });
-        setStep("success");
-        onClear();
+      const data = (await res.json()) as {
+        ok: boolean;
+        error?: string;
+        order?: { code: string };
+      };
+      if (!res.ok || !data.ok || !data.order) {
+        setError(data.error ?? "Não foi possível enviar o pedido.");
+        setSending(false);
+        return;
       }
+      onClear();
+      setStep("cart");
+      router.push(`/pedido/${data.order.code}`);
     } catch {
-      setError("Falha de conexão. Verifique sua internet e tente de novo.");
-    } finally {
-      setLoading(false);
+      setError("Falha de conexão. Tente novamente.");
+      setSending(false);
     }
-  }
-
-  if (!open) return null;
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div
-        className="absolute inset-0 animate-fade-in bg-stone-950/45 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <aside className="relative flex h-full w-full max-w-md animate-slide-in-right flex-col border-l border-white/10 bg-[#0c0c0f] shadow-2xl">
-        {/* HEADER */}
-        <div className="flex items-center gap-3 border-b border-white/[0.06] px-5 py-4">
-          {step === "checkout" && (
-            <button
-              onClick={() => setStep("cart")}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06]"
-            >
-              <ArrowLeft size={18} />
-            </button>
-          )}
-          <h2 className="flex-1 text-base font-extrabold tracking-tight">
-            {step === "cart" && `Seu carrinho${count ? ` · ${count}` : ""}`}
-            {step === "checkout" && "Finalizar pedido"}
-            {step === "success" && "Pedido enviado!"}
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="max-h-[92vh] w-full max-w-lg animate-slide-up overflow-y-auto rounded-t-3xl border border-white/10 bg-[#0e0e13] p-5 shadow-2xl sm:rounded-3xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-black tracking-tight text-white">
+            {step === "cart" ? "Carrinho" : "Finalizar pedido"}
           </h2>
           <button
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 transition hover:bg-white/[0.06] hover:text-zinc-200"
-            aria-label="Fechar"
+            type="button"
+            onClick={close}
+            aria-label="Fechar carrinho"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-zinc-500 hover:bg-white/[0.06]"
           >
-            <X size={19} />
+            <X size={18} />
           </button>
         </div>
 
-        {step === "cart" && (
+        {step === "cart" ? (
           <>
-            <div className="flex-1 overflow-y-auto px-5 py-4">
+            <div className="space-y-3">
               {lines.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-center">
-                  <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.06] text-zinc-500">
-                    <ShoppingBag size={26} />
-                  </span>
-                  <p className="mt-4 font-bold text-zinc-200">
-                    Seu carrinho está vazio
-                  </p>
-                  <p className="mt-1 max-w-[240px] text-sm text-zinc-400">
-                    Adicione itens do cardápio para começar seu pedido.
-                  </p>
-                  <button
-                    onClick={onClose}
-                    className="mt-5 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-zinc-900"
-                  >
-                    Ver cardápio
-                  </button>
+                <div className="py-16 text-center">
+                  <p className="text-3xl">🛒</p>
+                  <p className="mt-2 font-bold text-zinc-200">Carrinho vazio</p>
                 </div>
               ) : (
-                <ul className="space-y-3">
-                  {lines.map(({ product, qty }) => (
-                    <li
-                      key={product.id}
-                      className="flex gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-2.5"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={product.imageUrl}
-                        alt=""
-                        className="h-16 w-16 shrink-0 rounded-xl object-cover"
-                      />
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        <div className="flex items-start gap-2">
-                          <p className="flex-1 truncate text-sm font-bold text-zinc-100">
-                            {product.name}
-                          </p>
-                          <button
-                            onClick={() => onRemove(product.id)}
-                            className="text-zinc-500 transition hover:text-red-400"
-                            aria-label="Remover item"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-zinc-400">
-                          {brl(product.price)} cada
+                lines.map((line) => (
+                  <div
+                    key={line.product.id}
+                    className="flex items-center gap-3 border-b border-white/[0.06] py-3"
+                  >
+                    <Image
+                      src={productImage(line.product.imageUrl)}
+                      alt={line.product.name}
+                      width={56}
+                      height={56}
+                      className="h-14 w-14 shrink-0 rounded-xl bg-white/[0.06] object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate text-sm font-bold text-zinc-100">
+                        {line.product.name}
+                      </h4>
+                      {line.size || line.flavor ? (
+                        <p className="text-[11px] text-zinc-400 font-medium">
+                          {[line.size && `Tamanho: ${line.size}`].filter(Boolean).join(" · ")}
+                          {[line.flavor && `Sabor: ${line.flavor}`].filter(Boolean).join(" · ")}
                         </p>
-                        <div className="mt-auto flex items-center justify-between pt-1.5">
-                          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-0.5">
-                            <button
-                              onClick={() => onDec(product.id)}
-                              className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/[0.06]"
-                            >
-                              <Minus size={12} />
-                            </button>
-                            <span className="w-5 text-center text-xs font-black">
-                              {qty}
-                            </span>
-                            <button
-                              onClick={() => onAdd(product)}
-                              className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-zinc-900"
-                            >
-                              <Plus size={12} />
-                            </button>
-                          </div>
-                          <span className="text-sm font-extrabold">
-                            {brl(product.price * qty)}
-                          </span>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      ) : null}
+                      <p className="text-[12px] text-zinc-500">
+                        {brl(line.unitPrice ?? line.product.price)} × {line.qty}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onDec(line.product.id)}
+                        aria-label="Remover um"
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-zinc-200 transition hover:text-white"
+                      >
+                        −
+                      </button>
+                      <span className="w-5 text-center text-xs font-black">
+                        {line.qty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onAdd(line.product.id)}
+                        aria-label="Adicionar um"
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--brand)] text-sm font-bold text-white shadow-sm transition hover:brightness-110"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
 
             {lines.length > 0 && (
-              <div className="border-t border-white/[0.06] px-5 py-4">
-                <div className="mb-1 flex items-center justify-between text-sm">
+              <div className="mt-4 space-y-3 border-t border-white/[0.06] pt-3">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-zinc-400">Subtotal</span>
-                  <span className="font-bold">{brl(subtotal)}</span>
+                  <span className="font-black text-white">{brl(subtotal)}</span>
                 </div>
-                <div className="mb-3 flex items-center justify-between text-xs text-zinc-500">
-                  <span>Entrega calculada no próximo passo</span>
-                </div>
-                {subtotal < settings.minOrder && (
-                  <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">
-                    Pedido mínimo de {brl(settings.minOrder)}. Faltam{" "}
-                    {brl(settings.minOrder - subtotal)}.
-                  </p>
-                )}
-                {!settings.isOpen && (
-                  <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700">
-                    A loja está fechada. Não é possível enviar pedidos agora.
-                  </p>
-                )}
+                <p className="text-xs font-semibold text-zinc-500">
+                  {lines.reduce((a, l) => a + l.qty, 0)} item(ns) · mínimo{" "}
+                  {brl(settings.minOrder)}
+                </p>
+
                 <button
-                  disabled={subtotal < settings.minOrder || !settings.isOpen}
-                  onClick={() => setStep("checkout")}
-                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--brand)] px-5 py-3.5 text-sm font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                  type="button"
+                  onClick={onClear}
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-white/10 px-4 py-2.5 text-xs font-bold text-zinc-300 transition hover:bg-white/15 hover:text-white"
                 >
-                  Continuar · {brl(subtotal)}
+                  Limpar carrinho
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStep("checkout")}
+                  className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--brand)] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-black/20 transition hover:brightness-110"
+                >
+                  <ShoppingBag size={16} />
+                  Finalizar pedido · {brl(subtotal)}
                 </button>
               </div>
             )}
           </>
-        )}
-
-        {step === "checkout" && (
-          <>
-            <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
-                  Como você quer receber?
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <TypeButton
-                    active={type === "delivery"}
-                    onClick={() => setType("delivery")}
-                    icon={<Bike size={17} />}
-                    title="Entrega"
-                    subtitle={brl(settings.deliveryFee)}
-                  />
-                  <TypeButton
-                    active={type === "retirada"}
-                    onClick={() => setType("retirada")}
-                    icon={<Store size={17} />}
-                    title="Retirada"
-                    subtitle="Grátis"
-                  />
-                </div>
-              </div>
-
-              <Field label="Seu nome">
+        ) : (
+          <form onSubmit={submit} className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-bold text-zinc-400">
+                Nome
                 <input
+                  required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Como podemos te chamar?"
-                  className="input"
+                  placeholder="Seu nome completo"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-[var(--brand)]"
                 />
-              </Field>
-
-              <Field label="WhatsApp">
+              </label>
+              <label className="block text-xs font-bold text-zinc-400">
+                WhatsApp
                 <input
+                  required
                   value={phone}
-                  onChange={(e) => setPhone(formatPhone(e.target.value))}
+                  onChange={(e) => setPhone(e.target.value)}
                   inputMode="tel"
                   placeholder="(11) 99999-9999"
-                  className="input"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-[var(--brand)]"
                 />
-              </Field>
+              </label>
+            </div>
 
-              {type === "delivery" && activeZones.length > 0 && (
-                <Field label="Bairro / Região de entrega">
-                  <select
-                    value={zoneId}
-                    onChange={(e) => setZoneId(e.target.value)}
-                    className="input"
-                  >
-                    <option value="">Taxa padrão ({brl(settings.deliveryFee)})</option>
-                    {activeZones.map((z) => (
-                      <option key={z.id} value={z.id}>
-                        {z.name} — {brl(z.fee)}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setType("delivery")}
+                className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                  type === "delivery"
+                    ? "border-[var(--brand)] bg-[var(--brand)]/15 text-white"
+                    : "border-white/10 bg-white/[0.04] text-zinc-400"
+                }`}
+              >
+                <Bike size={15} /> Entrega
+              </button>
+              <button
+                type="button"
+                onClick={() => setType("retirada")}
+                className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                  type === "retirada"
+                    ? "border-[var(--brand)] bg-[var(--brand)]/15 text-white"
+                    : "border-white/10 bg-white/[0.04] text-zinc-400"
+                }`}
+              >
+                <Store size={15} /> Retirada
+              </button>
+            </div>
 
-              {type === "delivery" && (
-                <Field label="Endereço de entrega">
+            {type === "delivery" && (
+              <>
+                <label className="block text-xs font-bold text-zinc-400">
+                  Endereço
                   <textarea
+                    required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     rows={2}
-                    placeholder="Rua, número, complemento e bairro"
-                    className="input resize-none"
+                    placeholder="Rua, número, bairro e complemento"
+                    className="mt-1 w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-[var(--brand)]"
                   />
-                </Field>
-              )}
-
-              <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
-                  Forma de pagamento
-                </p>
-                <div className="space-y-2">
-                  {(
-                    [
-                      ["pix", "Pix", "Chave enviada pelo WhatsApp"],
-                      ["cartao", "Cartão na entrega", "Débito ou crédito na maquininha física"],
-                      ["vr", "Vale-refeição / VR na entrega", "Maquininha física enviada com o entregador"],
-                      ["dinheiro", "Dinheiro", "Informe o troco nas observações"],
-                    ] as [PaymentMethod, string, string][]
-                  ).map(([value, label, hint]) => (
-                    <button
-                      key={value}
-                      onClick={() => setPayment(value)}
-                      className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
-                        payment === value
-                          ? "border-[var(--brand)] bg-[rgba(225,29,72,0.12)] ring-1 ring-[var(--brand)]"
-                          : "border-white/10 hover:border-white/15"
-                      }`}
+                </label>
+                {zones.length > 0 && (
+                  <label className="block text-xs font-bold text-zinc-400">
+                    Região de entrega
+                    <select
+                      value={zoneId}
+                      onChange={(e) => setZoneId(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-[var(--brand)]"
                     >
-                      <CreditCard
-                        size={17}
-                        className={
-                          payment === value ? "text-[var(--brand)]" : "text-zinc-500"
-                        }
-                      />
-                      <span className="flex-1">
-                        <span className="block text-sm font-bold text-zinc-100">
-                          {label}
-                        </span>
-                        <span className="block text-[11px] text-zinc-400">
-                          {hint}
-                        </span>
-                      </span>
-                      <span
-                        className={`h-4 w-4 rounded-full border-2 ${
-                          payment === value
-                            ? "border-[var(--brand)] bg-[var(--brand)]"
-                            : "border-white/15"
-                        }`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <Field label="Observações (opcional)">
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Ponto da carne, troco, sem cebola..."
-                  className="input resize-none"
-                />
-              </Field>
-
-              <div className="rounded-2xl bg-white/[0.03] p-4">
-                <SummaryRow label="Subtotal" value={brl(subtotal)} />
-                {type === "delivery" && (
-                  <SummaryRow
-                    label={`Entrega ${selectedZone ? `(${selectedZone.name})` : ""}`}
-                    value={brl(deliveryFee)}
-                  />
+                      {zones.map((z) => (
+                        <option key={z.id} value={z.id} className="bg-[#0e0e13]">
+                          {z.name} · {brl(z.fee)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 )}
-                <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-2 text-base">
-                  <span className="font-bold text-white">Total</span>
-                  <span className="font-black text-white">{brl(total)}</span>
-                </div>
-              </div>
+              </>
+            )}
 
-              {error && (
-                <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700">
-                  {error}
-                </p>
-              )}
-            </div>
-
-            <div className="border-t border-white/[0.06] px-5 py-4">
-              <button
-                onClick={submit}
-                disabled={!canSubmit || loading}
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--brand)] px-5 py-3.5 text-sm font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+            <label className="block text-xs font-bold text-zinc-400">
+              Pagamento
+              <select
+                value={payment}
+                onChange={(e) => setPayment(e.target.value as PaymentMethod)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-[var(--brand)]"
               >
-                {loading ? (
-                  <>
-                    <Loader2 size={17} className="animate-spin" /> Enviando...
-                  </>
-                ) : (
-                  <>
-                    <Send size={16} /> Enviar pedido · {brl(total)}
-                  </>
-                )}
-              </button>
-              <p className="mt-2 text-center text-[11px] text-zinc-500">
-                Você confirma o pedido no WhatsApp do restaurante.
-              </p>
-            </div>
-          </>
-        )}
+                {PAYMENTS.map((p) => (
+                  <option key={p.value} value={p.value} className="bg-[#0e0e13]">
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-        {step === "success" && placed && (
-          <div className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
-            <span className="flex h-20 w-20 animate-pop items-center justify-center rounded-full bg-emerald-500/10 text-emerald-400">
-              <CheckCircle2 size={42} />
-            </span>
-            <h3 className="mt-5 text-xl font-black tracking-tight">
-              Pedido #{placed.order.code}
-            </h3>
-            <p className="mt-2 max-w-[280px] text-sm leading-relaxed text-zinc-400">
-              Registramos seu pedido no valor de{" "}
-              <strong className="text-zinc-100">{brl(placed.order.total)}</strong>.
-              Agora envie a mensagem no WhatsApp para o restaurante confirmar.
-            </p>
+            <label className="block text-xs font-bold text-zinc-400">
+              Observações
+              <input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex: sem cebola"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-[var(--brand)]"
+              />
+            </label>
 
-            <a
-              href={placed.whatsappUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-emerald-700"
-            >
-              <Send size={16} /> Abrir WhatsApp e enviar
-            </a>
-            <a
-              href={`/pedido/${placed.order.code}`}
-              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--brand)] px-5 py-3 text-sm font-bold text-white transition hover:brightness-110"
-            >
-              Acompanhar pedido e abrir chat →
-            </a>
-            <button
-              onClick={resetAll}
-              className="mt-2.5 w-full rounded-full border border-white/10 px-5 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/[0.05]"
-            >
-              Fazer novo pedido
-            </button>
-
-            <div className="mt-6 w-full rounded-2xl bg-white/[0.03] p-4 text-left">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                Resumo
-              </p>
-              {placed.order.items.map((it) => (
-                <p
-                  key={it.productId}
-                  className="flex justify-between gap-3 text-xs text-zinc-300"
-                >
-                  <span className="truncate">
-                    {it.qty}x {it.name}
-                  </span>
-                  <span className="shrink-0 font-semibold">
-                    {brl(it.price * it.qty)}
-                  </span>
-                </p>
-              ))}
-              <p className="mt-2 flex justify-between border-t border-white/10 pt-2 text-xs font-black text-zinc-100">
+            <div className="space-y-1 rounded-xl bg-white/[0.04] p-3 text-sm">
+              <div className="flex justify-between text-zinc-400">
+                <span>Subtotal</span>
+                <span>{brl(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-zinc-400">
+                <span>Entrega</span>
+                <span>{brl(deliveryFee)}</span>
+              </div>
+              <div className="flex justify-between font-black text-white">
                 <span>Total</span>
-                <span>{brl(placed.order.total)}</span>
-              </p>
+                <span>{brl(total)}</span>
+              </div>
             </div>
-          </div>
+
+            <label className="flex items-start gap-2 text-xs text-zinc-300 leading-relaxed cursor-pointer select-none group">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                required
+                className="rounded border-white/30 bg-[#0e0e13] text-[var(--brand)] focus:ring-[var(--brand)]"
+              />
+              <span className="font-semibold">Li e aceito os </span>
+              <Link
+                href="/termos-de-uso"
+                className="text-[var(--brand)] underline underline-offset-2 hover:text-white"
+              >
+                Termos de Uso
+              </Link>
+              <span className="text-zinc-500"> e a </span>
+              <Link
+                href="/privacidade"
+                className="text-[var(--brand)] underline underline-offset-2 hover:text-white"
+              >
+                Política de Privacidade
+              </Link>
+            </label>
+
+            <label className="flex items-start gap-2 text-xs text-zinc-400 leading-relaxed cursor-pointer select-none group mt-2">
+              <input
+                type="checkbox"
+                checked={marketingConsent}
+                onChange={(e) => setMarketingConsent(e.target.checked)}
+                className="rounded border-white/30 bg-[#0e0e13] text-[var(--brand)] focus:ring-[var(--brand)]"
+              />
+              <span>Quero receber promoções e novidades por WhatsApp (opcional, pode cancelar a qualquer momento).</span>
+            </label>
+
+            {error && (
+              <p className="rounded-xl bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300">
+                {error}
+              </p>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setStep("cart")}
+                className="rounded-full bg-white/10 px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-white/15"
+              >
+                Voltar
+              </button>
+              <button
+                type="submit"
+                disabled={sending}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[var(--brand)] px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110 disabled:opacity-60"
+              >
+                {sending ? "Enviando…" : `Confirmar pedido · ${brl(total)}`}
+              </button>
+            </div>
+          </form>
         )}
-      </aside>
+      </div>
     </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-zinc-500">
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function TypeButton({
-  active,
-  onClick,
-  icon,
-  title,
-  subtitle,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2.5 rounded-xl border px-3 py-3 text-left transition ${
-        active
-          ? "border-[var(--brand)] bg-[rgba(225,29,72,0.12)] ring-1 ring-[var(--brand)]"
-          : "border-white/10 hover:border-white/15"
-      }`}
-    >
-      <span className={active ? "text-[var(--brand)]" : "text-zinc-500"}>
-        {icon}
-      </span>
-      <span>
-        <span className="block text-sm font-bold text-zinc-100">{title}</span>
-        <span className="block text-[11px] text-zinc-400">{subtitle}</span>
-      </span>
-    </button>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <p className="flex items-center justify-between text-sm text-zinc-300">
-      <span>{label}</span>
-      <span className="font-semibold">{value}</span>
-    </p>
   );
 }
