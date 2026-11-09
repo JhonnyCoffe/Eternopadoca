@@ -21,4 +21,14 @@
 
 ---
 
-Tags: `#save-manual` `#obsidian` `#opencode`
+## Sessão 2026-11-04 15:45 — Padoca Eterno
+
+- Arquivo importado: [[salvar.dia-2026-11-04-1545]]
+- Resumo: reestruturação completa do site para Padoca Eterno, importação de 133 produtos, estoque + lista de compras, segurança (headers, rate limit, CSRF por origem), teste E2E (pedido #3384 concluído), `tsc --noEmit` OK.
+- Falhas corrigidas: 11 (checkout, login 403, dashboard, ListaCompras, tracking 500, imagens N/A, categorias, identidade, cache SW, bug carrinho, arquivo morto).
+- Tags: #padoca-eterno #nextjs #estoque #lista-compras #seguranca #test-e2e #obsidian
+- Backlinks: [[Padoca Eterno]] · [[Next.js 16]] · [[Estoque e Compras]] · [[Segurança Web]] · [[Teste E2E]]
+
+---
+
+Tags: `#save-manual` `#obsidian` `#opencode` `#padoca-eterno`

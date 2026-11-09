@@ -103,3 +103,27 @@
 - **JSON local:** ok para 1–5 usuários; não usar com acessos simultâneos intensos. Migrar para SQLite cedo.
 - **Uploads em disco:** em deploy serverless (Vercel) o disco é temporário; usar storage externo ao publicar.
 - **Escopo:** priorizar a operação diária antes de features “bonitas”. Medir uso real por 2–4 semanas.
+
+
+---
+
+## Fase 6 — Pendências de segurança e performance (infra/deploy)
+
+> Itens de código "faz agora" já implementados. Os abaixo dependem de hospedagem/configuração.
+
+### Segurança (infra)
+- [ ] HTTPS obrigatório — grátis (Vercel/Netlify/Cloudflare, Let's Encrypt automático)
+- [ ] CORS restrito — grátis, configurar headers no host/proxy
+- [ ] Banco protegido — grátis, permissões de arquivo no servidor
+- [ ] Segredos vazados no Git — grátis, revogar/girar chaves se encontrar (scan feito, sem segredos)
+
+### Performance (infra)
+- [ ] CDN para estáticos — grátis nos hosts acima
+- [ ] Monitoramento de velocidade (Lighthouse CI) — grátis (GitHub Actions)
+- [ ] Fila em background (BullMQ/Redis) — free tier (Upstash) ou self-host
+- [ ] OpenTelemetry — lib grátis; coletor/infra (Grafana Cloud free tier ou self-host)
+- [ ] Múltiplas instâncias / load balancer — geralmente pago
+
+### Observações
+- Uploads em disco (public/uploads) são temporários em serverless (Vercel): migrar para storage externo (S3/R2) ao publicar.
+- Fila e múltiplas instâncias só fazem sentido com volume; manter simples até medir uso real.
