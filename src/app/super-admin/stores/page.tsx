@@ -3,7 +3,7 @@ import { getStores } from "@/lib/store-db";
 export default async function SuperAdminStoresPage() {
   const stores = await getStores();
   return (
-    <div className="min-h-screen bg-[#08080a] text-zinc-100 p-8">
+    <div className="min-h-screen bg-[#121215] text-zinc-100 p-8">
       <h1 className="text-2xl font-black text-white mb-6">Super Admin — Lojas</h1>
       <div className="space-y-2">
         {stores.map((s) => (

@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth";
 import { clearDeliveryLocation } from "@/lib/location";
 import { hashPassword } from "@/lib/password";
+import { consumeResetToken, verifyResetToken } from "@/lib/password-reset";
 import type { OrderStatus, Role, Weekday } from "@/lib/types";
 import { ORDER_STATUS_LABEL, ROLE_HOME } from "@/lib/types";
 
@@ -225,6 +226,15 @@ export type ProductInput = {
   stock?: string | number;
   trackStock?: boolean;
   lowStockAt?: string | number;
+  position?: string | number;
+  variants?: Array<{
+    id?: string;
+    size?: string;
+    flavor?: string;
+    price?: string | number;
+    stock?: string | number;
+    active?: boolean;
+  }>;
 };
 
 export async function saveProduct(input: ProductInput): Promise<ActionResult> {
@@ -257,6 +267,18 @@ export async function saveProduct(input: ProductInput): Promise<ActionResult> {
     stock: Math.max(0, parseIntSafe(input.stock ?? 0)),
     trackStock: Boolean(input.trackStock),
     lowStockAt: Math.max(0, parseIntSafe(input.lowStockAt ?? 5, 5)),
+    position: Number.isFinite(parseIntSafe(input.position ?? 0))
+      ? parseIntSafe(input.position ?? 0)
+      : 0,
+    variants: (input.variants ?? []).map((v) => ({
+      id: v.id ?? crypto.randomUUID(),
+      productId: "",
+      size: v.size ?? "",
+      flavor: v.flavor ?? "",
+      price: Math.max(0, parseMoney(v.price ?? 0)),
+      stock: v.stock ? Math.max(0, parseIntSafe(v.stock, 0)) : undefined,
+      active: v.active ?? true,
+    })),
   };
 
   const result = await mutateDb((target) => {
@@ -315,6 +337,83 @@ export async function restockProduct(
     return { ok: true as const };
   });
   refreshAll();
+  return result;
+}
+
+export async function moveProductPosition(
+  id: string,
+  direction: "up" | "down",
+): Promise<ActionResult> {
+  await guard(["dono", "atendente"]);
+  const result = await mutateDb((db) => {
+    const product = db.products.find((p) => p.id === id);
+    if (!product) return { ok: false as const, error: "Produto não encontrado." };
+
+    const sameCategory = db.products
+      .filter((p) => p.categoryId === product.categoryId)
+      .sort((a, b) => a.position - b.position);
+
+    const index = sameCategory.findIndex((p) => p.id === id);
+    if (index < 0) return { ok: false as const, error: "Produto não encontrado." };
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sameCategory.length)
+      return { ok: true as const };
+
+    const target = sameCategory[targetIndex];
+    const tmp = product.position;
+    product.position = target.position;
+    target.position = tmp;
+
+    return { ok: true as const };
+  });
+  if (result.ok) refreshAll();
+  return result;
+}
+
+export async function reorderProducts(
+  productIds: string[],
+): Promise<ActionResult> {
+  await guard(["dono", "atendente"]);
+  const result = await mutateDb((db) => {
+    const byId = new Map(db.products.map((p) => [p.id, p]));
+    productIds.forEach((id, index) => {
+      const product = byId.get(id);
+      if (product) product.position = index;
+    });
+    return { ok: true as const };
+  });
+  if (result.ok) refreshAll();
+  return result;
+}
+
+export async function moveProductsToCategory(
+  productIds: string[],
+  targetCategoryId: string,
+): Promise<ActionResult> {
+  await guard(["dono", "atendente"]);
+  const db = await getDb();
+  if (!db.categories.some((c) => c.id === targetCategoryId)) {
+    return { ok: false, error: "Categoria de destino não encontrada." };
+  }
+  const result = await mutateDb((target) => {
+    const maxPosition = Math.max(
+      0,
+      ...target.products
+        .filter((p) => p.categoryId === targetCategoryId)
+        .map((p) => p.position),
+    );
+    let next = maxPosition + 1;
+    productIds.forEach((id) => {
+      const product = target.products.find((p) => p.id === id);
+      if (product) {
+        product.categoryId = targetCategoryId;
+        product.position = next++;
+      }
+    });
+    return { ok: true as const };
+  });
+  if (result.ok) refreshAll();
   return result;
 }
 
@@ -551,3 +650,24 @@ export async function deleteZone(id: string): Promise<ActionResult> {
   refreshAll();
   return { ok: true };
 }
+
+export async function resetPasswordWithToken(
+  token: string,
+  newPassword: string,
+): Promise<ActionResult> {
+  const userId = await verifyResetToken(token);
+  if (!userId) return { ok: false, error: "Link inválido ou expirado." };
+  if (!newPassword || newPassword.trim().length < 4)
+    return { ok: false, error: "Senha muito curta." };
+
+  const result = await mutateDb((db) => {
+    const user = db.users.find((u) => u.id === userId);
+    if (!user) return { ok: false as const, error: "Usuário não encontrado." };
+    user.passwordHash = hashPassword(newPassword.trim(), user.username);
+    return { ok: true as const };
+  });
+
+  if (!result.ok) return result;
+  await consumeResetToken(token);
+  return { ok: true };
+}

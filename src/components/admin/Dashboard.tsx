@@ -17,6 +17,7 @@ import type { Category, Order, Product, Settings } from "@/lib/types";
 import { ORDER_STATUS_LABEL, PAYMENT_LABEL } from "@/lib/types";
 import { brl } from "@/lib/format";
 import { isLowStock, orderCost } from "@/lib/store-utils";
+import ListaCompras from "@/components/admin/ListaCompras";
 
 const STATUS_COLORS: Record<string, string> = {
   novo: "#e11d48",
@@ -147,13 +148,16 @@ export default function Dashboard({
   const pickupCount = valid.length - deliveryCount;
 
   const activeProducts = products.filter((p) => p.active).length;
+  const recent = [...orders]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .slice(0, 5);
   const lowStock = products
     .filter((p) => p.trackStock && isLowStock(p))
     .sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0))
     .slice(0, 4);
-  const recent = [...orders]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 5);
 
   return (
     <div className="animate-fade-in">
@@ -445,6 +449,10 @@ export default function Dashboard({
             </ul>
           )}
         </section>
+
+        {/* ESTOQUE - LISTA DE COMPRAS */}
+
+        <ListaCompras products={products} />
 
         {/* ÚLTIMOS PEDIDOS */}
         <section className="panel rounded-3xl p-5 xl:col-span-2">

@@ -102,6 +102,16 @@ export default function OrdersBoard({
     (o) => FILTERS.find((f) => f.id === filter)?.match(o) ?? true,
   );
 
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const paged = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPage(1);
+  }, [filter]);
+
   function setStatus(order: Order, status: OrderStatus) {
     setPendingId(order.id);
     startTransition(async () => {
@@ -201,7 +211,7 @@ export default function OrdersBoard({
         </div>
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
-          {visible.map((order) => {
+          {paged.map((order) => {
             const next = NEXT[order.status];
             const busy = isPending && pendingId === order.id;
             const phone = onlyDigits(order.customerPhone);
@@ -455,6 +465,29 @@ export default function OrdersBoard({
           })}
         </div>
       )}
+      {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="btn btn-ghost text-xs disabled:opacity-40"
+            >
+              Anterior
+            </button>
+            <span className="text-xs text-zinc-400">
+              Página {page} de {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="btn btn-ghost text-xs disabled:opacity-40"
+            >
+              Próxima
+            </button>
+          </div>
+        )}
     </div>
   );
 }

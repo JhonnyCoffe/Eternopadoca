@@ -11,6 +11,7 @@ import {
   LogOut,
   Bike,
   Settings,
+  ShoppingCart,
   Users,
   UtensilsCrossed,
 } from "lucide-react";
@@ -54,6 +55,13 @@ const links: NavItem[] = [
     short: "Cardápio",
     icon: UtensilsCrossed,
     roles: ["dono", "atendente", "cozinha"],
+  },
+  {
+    href: "/admin/lista-compras",
+    label: "Lista de Compras",
+    short: "Compras",
+    icon: ShoppingCart,
+    roles: ["dono", "atendente"],
   },
   {
     href: "/admin/entregas",
@@ -100,6 +108,7 @@ export default function AdminShell({
   const initials = storeName.slice(0, 2).toUpperCase();
   const [hostname, setHostname] = useState("");
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (typeof window !== "undefined") setHostname(window.location.hostname);
   }, []);
 
@@ -201,7 +210,7 @@ export default function AdminShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* TOPBAR MOBILE */}
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/[0.06] bg-[#08080a]/85 px-4 py-3 backdrop-blur-xl lg:hidden">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/[0.06] bg-[#121215]/85 px-4 py-3 backdrop-blur-xl lg:hidden">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--brand)] to-[var(--brand-strong)] text-xs font-black text-white">
             {initials}
           </span>

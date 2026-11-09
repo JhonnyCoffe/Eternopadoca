@@ -4,6 +4,7 @@ import { Lock, UtensilsCrossed, User } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { ROLE_HOME } from "@/lib/types";
 import { loginAction } from "../actions";
+import ResetRequestForm from "@/components/admin/ResetRequestForm";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function LoginPage({
   const { erro } = await searchParams;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#08080a] px-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#121215] px-4">
       {/* Background radial glow */}
       <div className="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-rose-600/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-rose-950/20 blur-3xl" />
@@ -95,6 +96,8 @@ export default async function LoginPage({
             <span className="text-rose-300">senha configurada no ambiente</span>
           </div>
         </form>
+
+        <ResetRequestForm />
 
         <Link
           href="/"

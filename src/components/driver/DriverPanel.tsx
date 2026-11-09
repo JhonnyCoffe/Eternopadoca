@@ -82,7 +82,7 @@ export default function DriverPanel({
   }
 
   return (
-    <div className="min-h-screen bg-[#08080a] text-zinc-100">
+    <div className="min-h-screen bg-[#121215] text-zinc-100">
       {/* HEADER */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/[0.08] bg-[#0c0c10]/90 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-2.5">
