@@ -96,7 +96,7 @@ export default function TrackingView({
   const deliveryCode = order.code;
 
   return (
-    <div className="min-h-screen bg-[#08080a] text-zinc-100">
+    <div className="min-h-screen bg-[#121215] text-zinc-100">
       {/* HEADER */}
       <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#0c0c10]/90 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-xl items-center justify-between">

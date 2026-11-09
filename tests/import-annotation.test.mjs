@@ -9,7 +9,6 @@ describe('import-annotation', () => {
   });
   it('deve criar arquivo .canvas', async () => {
     const fs = await import('fs');
-    const path = await import('path');
     const mod = await import('../scripts/import-annotation.mjs');
     const count = mod.runImport();
     assert.strictEqual(count > 0, true);

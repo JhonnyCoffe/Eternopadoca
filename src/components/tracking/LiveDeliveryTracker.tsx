@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import type { DeliveryLocation } from "@/lib/types";
-import DeliveryMap from "./DeliveryMap";
+
+// leaflet acessa `window` no topo do módulo: precisa ser client-only.
+const DeliveryMap = dynamic(() => import("./DeliveryMap"), {
+  ssr: false,
+  loading: () => <div className="h-64 animate-pulse rounded-2xl bg-zinc-900" />,
+});
 
 export interface LiveDeliveryTrackerProps {
   orderCode: string;
