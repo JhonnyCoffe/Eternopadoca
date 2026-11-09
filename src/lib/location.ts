@@ -1,8 +1,9 @@
 import type { DeliveryLocation } from "./types";
-import { openSqliteDb, initializeSqlite } from "./sqlite.cjs";
+import { openSqliteDb, initializeSqlite, type SqliteStore } from "./sqlite";
+import type { Database } from "sqlite3";
 
-async function withDb<T>(fn: (db: any) => Promise<T>): Promise<T> {
-  const store: any = openSqliteDb();
+async function withDb<T>(fn: (db: Database) => Promise<T>): Promise<T> {
+  const store: SqliteStore = openSqliteDb();
   try {
     await initializeSqlite(store);
     return await fn(store.db);
@@ -11,7 +12,7 @@ async function withDb<T>(fn: (db: any) => Promise<T>): Promise<T> {
   }
 }
 
-function run(db: any, sql: string, params: unknown[] = []): Promise<void> {
+function run(db: Database, sql: string, params: unknown[] = []): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(sql, params, (err: Error | null) => {
       if (err) return reject(err);
@@ -20,7 +21,7 @@ function run(db: any, sql: string, params: unknown[] = []): Promise<void> {
   });
 }
 
-function get<T>(db: any, sql: string, params: unknown[] = []): Promise<T | undefined> {
+function get<T>(db: Database, sql: string, params: unknown[] = []): Promise<T | undefined> {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err: Error | null, row: T | undefined) => {
       if (err) return reject(err);

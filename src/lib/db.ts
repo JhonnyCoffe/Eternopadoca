@@ -2,8 +2,8 @@ import { promises as fs } from "fs";
 import fsSync from "fs";
 import path from "path";
 import type { Db, DayHours, Weekday } from "./types";
-import { seedDb, createOwner } from "./seed";
-import { openSqliteDb, initializeSqlite, readSqliteDb, writeSqliteDb, importJsonIfEmpty } from "./sqlite.cjs";
+import { seedDb, createOwner, createKawan } from "./seed";
+import { openSqliteDb, initializeSqlite, readSqliteDb, writeSqliteDb, importJsonIfEmpty } from "./sqlite";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -41,6 +41,11 @@ export function normalizeDb(raw: Db): Db {
   // do painel fica impossível.
   if (db.users.length === 0) db.users.push(createOwner());
 
+  // Garante o usuário Kawan (cria se não existir, preservando bancos existentes)
+  if (!db.users.some((u) => u.username === "kawan")) {
+    db.users.push(createKawan());
+  }
+
   const currentSettings = db.settings ?? ({} as Db["settings"]);
   db.settings = {
     ...currentSettings,
@@ -54,6 +59,7 @@ export function normalizeDb(raw: Db): Db {
     product.stock = product.stock ?? 0;
     product.cost = product.cost ?? 0;
     product.lowStockAt = product.lowStockAt ?? 5;
+    product.position = Number.isFinite(product.position) ? product.position : 0;
   }
 
   for (const order of db.orders) {

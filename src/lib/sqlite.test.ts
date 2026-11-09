@@ -3,10 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-const { openSqliteDb, initializeSqlite, readSqliteDb, writeSqliteDb, importJsonIfEmpty } = require("./sqlite.cjs");
+import { openSqliteDb, initializeSqlite, readSqliteDb, writeSqliteDb, importJsonIfEmpty } from "./sqlite.ts";
 
 function fixtureDb() {
   const hours = Object.fromEntries(Array.from({ length: 7 }, (_, index) => [String(index), { closed: false, open: "18:00", close: "23:30" }])) as import("./types").Db["settings"]["hours"];
@@ -30,8 +27,10 @@ test("initializes SQLite schema", async () => {
     "order_items",
     "order_locations",
     "orders",
+    "password_reset_tokens",
     "products",
     "settings",
+    "stores",
     "users",
   ]);
 

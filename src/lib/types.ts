@@ -32,9 +32,21 @@ export interface Category {
   order: number;
 }
 
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  size?: string;   // ex: "350ml", "2L"
+  flavor?: string; // ex: "uva", "laranja", "limão", "guaraná"
+  price: number;   // preço desta variação (sobrepõe o do produto)
+  stock?: number;
+  active?: boolean;
+}
+
 export interface Product {
   id: string;
   categoryId: string;
+  /** Posição de exibição dentro da categoria (menor = primeiro). */
+  position: number;
   name: string;
   description: string;
   price: number;
@@ -49,6 +61,8 @@ export interface Product {
   trackStock?: boolean;
   /** Aviso de estoque baixo. */
   lowStockAt?: number;
+  /** Variações de tamanho/sabor (ex: Dolly 350ml/2L × uva/laranja/limão/guaraná). */
+  variants?: ProductVariant[];
 }
 
 export interface OrderItem {
@@ -59,6 +73,10 @@ export interface OrderItem {
   notes?: string;
   /** Custo unitário no momento da venda (para CMV histórico). */
   cost?: number;
+  /** Tamanho selecionado (quando houver variação). */
+  size?: string;
+  /** Sabor selecionado (quando houver variação). */
+  flavor?: string;
 }
 
 export interface Order {
@@ -87,6 +105,13 @@ export interface Order {
   paidAt?: string;
   rating?: number;
   ratedAt?: string;
+  /** LGPD: aceite dos termos e política de privacidade no checkout */
+  termsAccepted?: boolean;
+  termsVersion?: string;
+  termsAcceptedAt?: string;
+  termsIp?: string;
+  /** LGPD: consentimento separado para marketing */
+  marketingConsent?: boolean;
 }
 
 export interface ChatMessage {

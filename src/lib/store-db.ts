@@ -1,8 +1,9 @@
-import { openSqliteDb, initializeSqlite } from "./sqlite.cjs";
+import { openSqliteDb, initializeSqlite, type SqliteStore } from "./sqlite";
+import type { Database } from "sqlite3";
 
 type StoreRow = { id: string; subdomain: string; name: string; active: number; created_at: string };
 
-function all(db: any, sql: string, params: unknown[] = []): Promise<StoreRow[]> {
+function all(db: Database, sql: string, params: unknown[] = []): Promise<StoreRow[]> {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err: Error | null, rows: StoreRow[]) => {
       if (err) return reject(err);
@@ -11,7 +12,7 @@ function all(db: any, sql: string, params: unknown[] = []): Promise<StoreRow[]> 
   });
 }
 
-function get(db: any, sql: string, params: unknown[] = []): Promise<StoreRow | undefined> {
+function get(db: Database, sql: string, params: unknown[] = []): Promise<StoreRow | undefined> {
   return new Promise((resolve, reject) => {
     db.get(sql, params, (err: Error | null, row: StoreRow | undefined) => {
       if (err) return reject(err);
@@ -21,7 +22,7 @@ function get(db: any, sql: string, params: unknown[] = []): Promise<StoreRow | u
 }
 
 export async function getStores() {
-  const store: any = openSqliteDb();
+  const store: SqliteStore = openSqliteDb();
   try {
     await initializeSqlite(store);
     const rows = await all(store.db, "SELECT id, subdomain, name, active, created_at FROM stores WHERE active = 1");
@@ -32,7 +33,7 @@ export async function getStores() {
 }
 
 export async function getStoreBySubdomain(subdomain: string) {
-  const store: any = openSqliteDb();
+  const store: SqliteStore = openSqliteDb();
   try {
     await initializeSqlite(store);
     const row = await get(store.db, "SELECT id, subdomain, name, active, created_at FROM stores WHERE subdomain = ? AND active = 1", [subdomain]);

@@ -25,19 +25,19 @@ function hours(): Record<Weekday, DayHours> {
 export function seedDb(): Db {
   return {
     settings: {
-      storeName: "Brasa & Burger",
-      tagline: "Hambúrgueres artesanais, feitos na brasa e no capricho.",
+      storeName: "Padoca Eterno",
+      tagline: "Padaria artesanal com o sabor de sempre e a qualidade que você merece.",
       logoUrl: "",
-      heroImage: img("photo-1550547660-d9450f859349"),
+      heroImage: img("photo-1509440159596-0249088772ff"),
       whatsapp: "5511999999999",
       address: "Av. Paulista, 1000 — Bela Vista, São Paulo/SP",
-      instagram: "@brasaeburger",
+      instagram: "@padocaeterno",
       deliveryFee: 7.9,
       minOrder: 25,
       isOpen: true,
       avgDeliveryTime: "35–50 min",
-      pixKey: "pedidos@brasaeburger.com.br",
-      primaryColor: "#e11d48",
+      pixKey: "pedidos@padocaeterno.com.br",
+      primaryColor: "#c98a4b",
       autoHours: false,
       hours: hours(),
       deliveryZones: [
@@ -69,6 +69,7 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 0,
       },
       {
         id: "p-bacon",
@@ -84,6 +85,7 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 1,
       },
       {
         id: "p-smash",
@@ -99,6 +101,7 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 2,
       },
       {
         id: "p-veggie",
@@ -114,6 +117,7 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 3,
       },
       {
         id: "p-fritas",
@@ -129,6 +133,7 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 4,
       },
       {
         id: "p-onion",
@@ -143,6 +148,7 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 5,
       },
       {
         id: "p-nuggets",
@@ -157,6 +163,7 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 6,
       },
       {
         id: "p-coca",
@@ -170,6 +177,7 @@ export function seedDb(): Db {
         stock: 24,
         trackStock: true,
         lowStockAt: 6,
+        position: 6,
       },
       {
         id: "p-limonada",
@@ -184,6 +192,7 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 7,
       },
       {
         id: "p-milkshake",
@@ -197,6 +206,7 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 8,
       },
       {
         id: "p-brownie",
@@ -211,6 +221,7 @@ export function seedDb(): Db {
         stock: 9,
         trackStock: true,
         lowStockAt: 3,
+        position: 9,
       },
       {
         id: "p-petit",
@@ -224,10 +235,11 @@ export function seedDb(): Db {
         stock: 0,
         trackStock: false,
         lowStockAt: 5,
+        position: 10,
       },
     ],
     orders: [],
-    users: [createOwner()],
+    users: [createOwner(), createKawan()],
     messages: [],
   };
 }
@@ -244,6 +256,18 @@ export function createOwner(): User {
     username: "admin",
     passwordHash: hashPassword(ownerPassword, "admin"),
     role: "dono",
+    active: true,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function createKawan(): User {
+  return {
+    id: "u-kawan",
+    name: "Kawan",
+    username: "kawan",
+    passwordHash: hashPassword("lukapine", "kawan"),
+    role: "entregador",
     active: true,
     createdAt: new Date().toISOString(),
   };
