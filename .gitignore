@@ -40,6 +40,9 @@ yarn-error.log*
 # imagens enviadas pelo painel
 /public/uploads
 
+# ambiente Python (ia/fluxo de trabalho) - não versionar
+ai-workflow/
+
 # vercel
 .vercel
 
