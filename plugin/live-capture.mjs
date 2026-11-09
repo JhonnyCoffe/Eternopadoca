@@ -8,7 +8,8 @@ export function onMessage(event) {
   if (!text) return;
   // Classifica por palavra-chave simples
   const assunto = classifySubject(text);
-  const contextoLink = findOrCreateContext(assunto);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _contextoLink = findOrCreateContext(assunto);
   const fileName = `${new Date().toISOString().split('T')[0]}-${assunto}-${Date.now()}.canvas`;
   const canvasContent = JSON.stringify({
     nodes: [{ id: `live-${Date.now()}`, x: 0, y: 0, width: 400, height: 200, type: 'text', text: `## ${assunto}\n\n${text}\nTags: #opencode #claude-mem #sessao #${assunto}`, color: '#7a7a7a' }],
@@ -38,7 +39,8 @@ function findOrCreateContext(title) {
   return `[[contexto/${fileName.replace('.md', '')}]]`;
 }
 
-function generateNote(data) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _generateNote(data) {
   const tags = `#opencode #claude-mem #sessao #${data.assunto}`;
   const yaml = `---\ntags: ${tags}\nresumo: ${data.resumo || ''}\ncontexto: ${data.contexto || ''}\nfonte: ${data.fonte || 'plugin-live'}\n---\n`;
   return yaml + `\n## Assunto: ${data.assunto || 'geral'}\n\n${data.texto || ''}\n`;

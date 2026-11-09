@@ -2,16 +2,16 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Brasa & Burger — Cardápio digital",
-    short_name: "Brasa & Burger",
+    name: "Padoca Eterno — Cardápio digital",
+    short_name: "Padoca Eterno",
     description:
-      "Peça seus hambúrgueres artesanais favoritos direto pelo cardápio digital. Entrega rápida e retirada na loja.",
+      "Padaria artesanal com o sabor de sempre e a qualidade que você merece. Peça direto pelo cardápio digital.",
     id: "/",
     start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#08080a",
+    background_color: "#121215",
     theme_color: "#e11d48",
     lang: "pt-BR",
     dir: "ltr",

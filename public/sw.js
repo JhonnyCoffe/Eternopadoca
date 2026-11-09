@@ -3,7 +3,7 @@
  * Navegações: network-first (sempre tenta a rede, guarda cópia).
  * Arquivos estáticos do Next: cache-first (já são imutáveis).
  */
-const CACHE = "brasa-v1";
+const CACHE = "padoca-v2";
 const CORE = ["/"];
 
 self.addEventListener("install", (event) => {
