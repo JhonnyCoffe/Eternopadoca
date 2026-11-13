@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- repasse de props dos primitivos vaul */
+
 import * as React from "react";
 import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
 import { Drawer } from "vaul";

@@ -41,8 +41,11 @@ export function normalizeDb(raw: Db): Db {
   // do painel fica impossível.
   if (db.users.length === 0) db.users.push(createOwner());
 
-  // Garante o usuário Kawan (cria se não existir, preservando bancos existentes)
-  if (!db.users.some((u) => u.username === "kawan")) {
+  // Garante o usuario Kawan apenas em desenvolvimento (SEED_DEV_USER=1 forca).
+  // Em producao esse usuario nao deve existir por padrao.
+  const allowDevUser =
+    process.env.SEED_DEV_USER === "1" || process.env.NODE_ENV !== "production";
+  if (allowDevUser && !db.users.some((u) => u.username === "kawan")) {
     db.users.push(createKawan());
   }
 

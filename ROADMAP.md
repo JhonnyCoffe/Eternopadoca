@@ -127,3 +127,19 @@
 ### Observações
 - Uploads em disco (public/uploads) são temporários em serverless (Vercel): migrar para storage externo (S3/R2) ao publicar.
 - Fila e múltiplas instâncias só fazem sentido com volume; manter simples até medir uso real.
+
+---
+
+## Infra de publicação (pronta no repositório)
+
+Caminho escolhido: **VPS + Docker + Caddy**, que mantém JSON/SQLite e dispensa refatorar a camada de dados.
+
+- [x] `Dockerfile` multi-stage (Node 22, sqlite3 compilado, usuário sem privilégios, healthcheck)
+- [x] `docker-compose.yml` (app + Caddy, volumes persistentes para banco e uploads)
+- [x] `Caddyfile` (HTTPS automático via Let's Encrypt, redirect www, limite de upload)
+- [x] `deploy/backup.sh` e `deploy/update.sh`
+- [x] `/api/health` para healthcheck
+- [x] CI no GitHub Actions (tsc, lint, build, testes e build da imagem)
+- [x] `DEPLOY.md` com passo a passo, checklist e troubleshooting
+- [ ] Executar o deploy na VPS (depende de domínio, DNS e acesso ao servidor)
+- [ ] Configurar cron de backup e testar restauração

@@ -1,0 +1,67 @@
+name: cardapio
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cardapio-app:latest
+    restart: unless-stopped
+    # Copie deploy/env.production.example para .env antes de subir.
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      # Dados persistentes ficam no volume app_data.
+      DB_DRIVER: sqlite
+      SQLITE_PATH: /app/data/app.sqlite
+    volumes:
+      - app_data:/app/data
+      - app_uploads:/app/public/uploads
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health',{headers:{'x-forwarded-proto':'https'}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  app_data:
+  app_uploads:
+  caddy_data:
+  caddy_config:

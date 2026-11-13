@@ -5,9 +5,21 @@ import { verifyPassword } from "./password";
 import type { Role, User } from "./types";
 
 const COOKIE_NAME = "kawan_session";
-const SECRET =
-  process.env.AUTH_SECRET ||
-  `kawan-store::${process.env.ADMIN_PASSWORD || "admin123"}`;
+
+/**
+ * Segredo de assinatura. Em producao AUTH_SECRET e obrigatorio: sem ele o
+ * fallback e previsivel e permite forjar sessoes.
+ */
+function getSecret(): string {
+  const secret = process.env.AUTH_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "AUTH_SECRET ausente. Defina AUTH_SECRET em producao (openssl rand -hex 32).",
+    );
+  }
+  return `kawan-store::${process.env.ADMIN_PASSWORD || "admin123"}`;
+}
 
 export type Session = {
   userId: string;
@@ -16,7 +28,7 @@ export type Session = {
 };
 
 function sign(payload: string): string {
-  return createHmac("sha256", SECRET).update(payload).digest("base64url");
+  return createHmac("sha256", getSecret()).update(payload).digest("base64url");
 }
 
 export function createToken(session: Session, days = 7): string {

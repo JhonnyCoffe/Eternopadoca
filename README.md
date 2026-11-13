@@ -122,7 +122,7 @@ src/
 
 1. Trocar fotos e produtos pelos do seu restaurante (Painel → Cardápio)
 2. Ajustar cores e textos (Painel → Configurações)
-3. Publicar online (Vercel) + banco de dados
+3. Publicar online na VPS (Docker + Caddy) — passo a passo em [`DEPLOY.md`](./DEPLOY.md)
 4. Login por restaurante (multi-loja) e link próprio por cliente
 5. Integrações: impressora, iFood, pagamento online
 

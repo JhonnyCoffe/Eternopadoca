@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+/* eslint-disable react/no-unescaped-entities -- texto jurídico em português usa aspas retas */
+
 export default function PoliticaPrivacidade() {
   return (
     <main className="max-w-3xl mx-auto px-6 py-12 text-zinc-900 dark:text-zinc-100">

@@ -38,3 +38,18 @@
 - Substituir CNPJ/endereço/contato pelos dados reais (rodapé e políticas).
 - Assinar DPA com processadores (`DPA-modelo.md`) e não usar logotipo sem autorização.
 - Preencher `S3_*` no host para uploads persistentes (senão usa disco local).
+
+## Deploy (VPS + Docker + Caddy)
+
+| # | Tarefa | Status |
+|---|--------|--------|
+| 21 | Dockerfile de produção (Node 22, sqlite3, usuário sem privilégios) | ✅ |
+| 22 | docker-compose com app + Caddy e volumes persistentes | ✅ |
+| 23 | HTTPS automático e redirect www (`Caddyfile`) | ✅ |
+| 24 | Healthcheck (`/api/health`) | ✅ |
+| 25 | Backup e update automatizados (`deploy/*.sh`) | ✅ |
+| 26 | CI no GitHub Actions (tsc, lint, build, testes, imagem) | ✅ |
+| 27 | Endurecer produção: `AUTH_SECRET` e `ADMIN_PASSWORD` obrigatórios, usuário de teste fora de produção | ✅ |
+| 28 | Guia de publicação (`DEPLOY.md`) | ✅ |
+| 29 | Criar remote no GitHub e executar o deploy | ⏳ você faz |
+| 30 | Cron de backup + teste de restauração | ⏳ pós-deploy |

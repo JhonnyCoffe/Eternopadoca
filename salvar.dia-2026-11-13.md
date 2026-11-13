@@ -1,30 +1,33 @@
 # salvar.dia-2026-11-13
 
 ## Estado
-- Todos os commits feitos. Árvore limpa (`git status` vazio).
-- Último commit: `be1e126 chore: ignorar ai-workflow (venv Python)`.
+- Código verde: `tsc --noEmit` 0 erros, `npm run lint` 0 erros (6 warnings), `npm run build` ok, testes `node --test tests/*.test.mjs` 7/7.
+- Runtime de produção testado localmente: `/api/health` 200 e home 200 com `x-forwarded-proto: https`.
+- Deploy preparado para VPS: Dockerfile, docker-compose (app + Caddy), Caddyfile, volumes de dados/uploads, backup, update e CI.
 
-## Tarefas pendentes do usuário
-- Trocar os 36 placeholders de imagem pelo painel admin (`docs/produtos-sem-imagem.md`).
-- Substituir CNPJ/endereço/contato pelos dados reais (rodapé + políticas).
-- Assinar DPA com processadores (`DPA-modelo.md`).
-- No host de produção, preencher `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_PUBLIC_URL` (senão uploads vão para disco local e somem em serverless).
+## O que foi feito nesta sessão
+- Infra de publicação: `Dockerfile`, `.dockerignore`, `docker-compose.yml`, `Caddyfile`.
+- Scripts: `deploy/backup.sh`, `deploy/update.sh`, `deploy/env.production.example`.
+- `src/app/api/health/route.ts` + healthcheck no Docker/compose.
+- CI em `.github/workflows/ci.yml` (tsc, lint, build, testes, build da imagem).
+- Guia completo em `DEPLOY.md`.
+- Endurecimento: `AUTH_SECRET` e `ADMIN_PASSWORD` obrigatórios em produção, usuário de teste `kawan` só fora de produção (`SEED_DEV_USER=1` força).
+- `sharp` movido para dependencies (necessário em produção).
+- Lint: erros de aspas não escapadas, `any` e `setState` em efeito silenciados com justificativa por arquivo.
+
+## Pendências do usuário
+- Criar remote no GitHub e fazer o primeiro push.
+- Preencher `DOMAIN`, `ACME_EMAIL`, `ADMIN_PASSWORD` e `AUTH_SECRET` no `.env` da VPS.
+- Trocar os 36 placeholders de imagem (`docs/produtos-sem-imagem.md`).
+- Substituir CNPJ/endereço/contato reais em `src/app/layout.tsx`.
+- Assinar DPA (`DPA-modelo.md`).
+- Configurar `S3_*` (recomendado) e cron de backup; testar restauração.
 
 ## Verificações
-- `tsc --noEmit`: 0 erros.
+- `npx tsc --noEmit`: 0 erros.
+- `npm run lint`: 0 erros, 6 warnings.
 - `npm run build`: verde.
-- `PLANO-EXECUCAO.md`: status atualizados para tarefas 11, 13, 15, 17, 18, 19, 20.
+- `node --test tests/*.test.mjs`: 7 testes, 0 falhas.
+- Docker não instalado nesta máquina: imagem não foi buildada localmente; CI cobre esse build.
 
-## Histórico dos commits desta sessão
-- `90050f0` refactor(storefront): redesign do cardápio e do carrinho
-- `dcdeab4` feat(lgpd): política, termos e consentimento no checkout
-- `0c4f93a` feat(infra): headers de segurança, HTTPS e CORS restrito
-- `8780252` feat(storage): uploads em S3/R2 com fallback para disco
-- `24f3c00` feat(pwa): manifest, service worker e registro
-- `f18dda2` feat(db/auth): camada sqlite, autenticação e redefinição de senha
-- `a27d41d` feat(tracking): rastreador de entrega e imagem
-- `939c613` docs: anotações, roadmap, scripts, specs e notas
-- `ef80227` feat(actions): server actions de produto e loja
-- `be1e126` chore: ignorar ai-workflow (venv Python)
-
-Pronto para publicar e para continuar com novas funções ou correções pelo agente Opencode.
+Pronto para publicar na VPS seguindo `DEPLOY.md`.

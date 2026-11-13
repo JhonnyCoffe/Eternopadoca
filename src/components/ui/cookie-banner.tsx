@@ -23,6 +23,7 @@ export default function CookieBanner() {
       if (raw) {
         const parsed = JSON.parse(raw) as Consent;
         if (parsed.version === CONSENT_VERSION) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- leitura unica do localStorage no mount
           setConsent(parsed);
         } else {
           setShow(true);

@@ -1,0 +1,27 @@
+node_modules
+.next
+.git
+.github
+.vercel
+.env
+.env.*
+!.env.example
+
+# dados e uploads locais nao entram na imagem (ficam em volumes)
+data
+public/uploads
+backups
+logs
+
+# arquivos de trabalho que nao afetam o build
+docs
+Obsidian
+ai-workflow
+plugin
+prompts
+tests
+scripts/*.py
+*.md
+*.txt
+*.xlsx
+*.tsbuildinfo

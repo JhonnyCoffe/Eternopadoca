@@ -249,12 +249,17 @@ export function seedDb(): Db {
  * não tinham a tabela de usuários (sem ele o login fica impossível).
  */
 export function createOwner(): User {
-  const ownerPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const ownerPassword = process.env.ADMIN_PASSWORD;
+  if (!ownerPassword && process.env.NODE_ENV === "production") {
+    throw new Error(
+      "ADMIN_PASSWORD ausente. Defina uma senha forte em producao.",
+    );
+  }
   return {
     id: "u-owner",
     name: "Dono da loja",
     username: "admin",
-    passwordHash: hashPassword(ownerPassword, "admin"),
+    passwordHash: hashPassword(ownerPassword || "admin123", "admin"),
     role: "dono",
     active: true,
     createdAt: new Date().toISOString(),

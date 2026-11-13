@@ -40,6 +40,10 @@ yarn-error.log*
 # imagens enviadas pelo painel
 /public/uploads
 
+# backups locais (conteudo pessoal de pedidos)
+/backups/
+/logs/
+
 # ambiente Python (ia/fluxo de trabalho) - não versionar
 ai-workflow/
 
