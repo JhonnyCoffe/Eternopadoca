@@ -11,7 +11,6 @@ import {
 import NextImage from "next/image";
 import {
   FamilyDrawerRoot,
-  FamilyDrawerTrigger,
   FamilyDrawerContent,
   FamilyDrawerAnimatedWrapper,
   FamilyDrawerAnimatedContent,
@@ -34,7 +33,6 @@ interface ProductImageUploadDrawerProps {
   onConfirm: (url: string) => void;
   accept?: string;
   maxSizeMB?: number;
-  className?: string;
 }
 
 const MAX_SIZE_DEFAULT = 5; // MB
@@ -278,7 +276,6 @@ export function ProductImageUploadDrawer({
   onConfirm,
   accept,
   maxSizeMB,
-  className,
 }: ProductImageUploadDrawerProps) {
   const [, setView] = React.useState<UploadView>("select");
   const [fileUrl, setFileUrl] = React.useState<string | null>(null);
@@ -330,15 +327,6 @@ export function ProductImageUploadDrawer({
       onOpenChange={onOpenChange}
       onViewChange={(v: string) => setView(v as UploadView)}
     >
-      <FamilyDrawerTrigger asChild className={cn(className)}>
-        <button
-          type="button"
-          className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-bold text-zinc-100 transition hover:bg-white/10"
-        >
-          <Upload size={13} />
-          Enviar imagem
-        </button>
-      </FamilyDrawerTrigger>
       <FamilyDrawerOverlay />
       <FamilyDrawerContent>
         <FamilyDrawerAnimatedWrapper>
